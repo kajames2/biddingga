@@ -1,0 +1,11 @@
+-Iinclude
+-Ilib
+-lgtest
+-lgtest_main
+-lpthread
+-lboost_filesystem
+-lboost_system
+-lboost_program_options
+-g
+-std=c++14
+-stdlib=libc++
