@@ -22,9 +22,9 @@ FirstPrice::FirstPrice(std::vector<Distribution> value_dists)
 float FirstPrice::GetValue(float value, float bid) const { return value - bid; }
 
 void FirstPrice::AcceptStrategy(std::function<float(float)> bid_func, int id) {
-  bid_funcs_[id] = bid_func;
+  bid_funcs_[id] = std::move(bid_func);
   bid_cdfs_[id] = ResampleFunction(
-      ApproximateRandomVariableFunctionCDF(value_dists_[id], bid_func),
+      ApproximateRandomVariableFunctionCDF(value_dists_[id], bid_funcs_[id]),
       Interval{0, upper(value_dists_)});
 }
 

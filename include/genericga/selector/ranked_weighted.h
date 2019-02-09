@@ -1,9 +1,9 @@
 #ifndef _GENERICGA_SELECTOR_RANKED_WEIGHTED_H_
 #define _GENERICGA_SELECTOR_RANKED_WEIGHTED_H_
 
+#include <cassert>
 #include <vector>
 
-#include "genericga/fitness_collection.h"
 #include "genericga/selector/roulette.h"
 
 namespace genericga {
@@ -14,11 +14,15 @@ namespace selector {
 // a linear combination of the two
 class RankedWeighted : public Roulette {
  public:
-  RankedWeighted(float weight) : Roulette(), weight_(weight) {}
+  RankedWeighted(float weight) : Roulette(), weight_(weight) {
+    assert(weight >= 0 && weight <= 1);
+  }
   explicit RankedWeighted(float weight, int seed)
-      : Roulette(seed), weight_(weight) {}
+      : Roulette(seed), weight_(weight) {
+    assert(weight >= 0 && weight <= 1);
+  }
   std::vector<float> CalculateWeights(
-      const FitnessCollection& col) const override;
+      const std::vector<float>& fitnesses) const override;
 
  private:
   float weight_;

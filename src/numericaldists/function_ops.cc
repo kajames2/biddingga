@@ -4,6 +4,7 @@
 #include <functional>
 #include <numeric>
 #include <vector>
+#include <iostream>
 
 #include <boost/math/quadrature/gauss.hpp>
 
@@ -19,16 +20,14 @@ PiecewiseLinear ResampleFunction(const std::function<float(float)>& func,
   auto x_samples = GetMesh(interval, n_samples);
   std::vector<float> y_samples(n_samples);
   std::transform(x_samples.begin(), x_samples.end(), y_samples.begin(), func);
-  auto segments = PointsToLines(x_samples, y_samples);
-  return PiecewiseLinear(segments);
+  return PiecewiseLinear(y_samples, interval);
 }
 
 PiecewiseLinear ResampleFunction(const UnevenPiecewiseLinear& func,
                                  Interval interval, int n_samples) {
   auto x_samples = GetMesh(interval, n_samples);
   auto y_samples = func(x_samples);
-  auto segments = PointsToLines(x_samples, y_samples);
-  return PiecewiseLinear(segments);
+  return PiecewiseLinear(y_samples, interval);
 }
 
 UnevenPiecewiseLinear ApproximateInverse(
@@ -36,8 +35,11 @@ UnevenPiecewiseLinear ApproximateInverse(
   auto x_samples = GetMesh(interval, n_samples);
   std::vector<float> y_samples(n_samples);
   std::transform(x_samples.begin(), x_samples.end(), y_samples.begin(), func);
-  auto segments = PointsToLines(y_samples, x_samples);
-  return UnevenPiecewiseLinear(segments);
+  if (y_samples.front() > y_samples.back()) {
+    std::reverse(x_samples.begin(), x_samples.end());
+    std::reverse(y_samples.begin(), y_samples.end());
+  }
+  return UnevenPiecewiseLinear(y_samples, x_samples);
 }
 
 PiecewiseLinear ApproximateDerivative(const std::function<float(float)>& func,
@@ -53,8 +55,7 @@ PiecewiseLinear ApproximateDerivative(const std::function<float(float)>& func,
   for (int i = 0; i < n_samples; ++i) {
     y_samples[i] = (yd_samples[i + 1] - yd_samples[i]) / d;
   }
-  auto segments = PointsToLines(x_samples, y_samples);
-  return PiecewiseLinear(segments);
+  return PiecewiseLinear(y_samples, {x_samples.front(), x_samples.back()});
 }
 
 // Returns areas under curve for between each samples.  out[0] = 0, and out[i] =
@@ -81,8 +82,7 @@ PiecewiseLinear ApproximateIntegralBelow(
   auto area_samples = ApproximateAreas(func, x_samples, integrand_func);
   std::partial_sum(area_samples.begin(), area_samples.end(),
                    area_samples.begin());
-  auto segments = PointsToLines(x_samples, area_samples);
-  return PiecewiseLinear(segments);
+  return PiecewiseLinear(area_samples, {x_samples.front(), x_samples.back()});
 }
 
 // Returns a functor, f, for which over the interval [a,b), f(x) will return
@@ -96,24 +96,22 @@ PiecewiseLinear ApproximateIntegralAbove(
               area_samples.end());
   std::partial_sum(area_samples.rbegin(), area_samples.rend(),
                    area_samples.rbegin());
-  auto segments = PointsToLines(x_samples, area_samples);
-  return PiecewiseLinear(segments);
+  return PiecewiseLinear(area_samples, {x_samples.front(), x_samples.back()});
 }
 
 Bilerper ResampleFunction2D(const std::function<float(float, float)>& func,
                             Interval x_int, Interval y_int, int n_samples) {
   auto x_samples = GetMesh(x_int, n_samples);
   auto y_samples = GetMesh(y_int, n_samples);
-  std::vector<std::function<float(float)>> y_slices;
+  std::vector<std::vector<float>> z_slices;
   for (auto y_it = y_samples.rbegin(); y_it != y_samples.rend(); ++y_it) {
     float y = *y_it;
     std::vector<float> z_samples(n_samples);
     std::transform(x_samples.begin(), x_samples.end(), z_samples.begin(),
                    [y, &func](float x) { return func(x, y); });
-    PiecewiseLinear slice_func(z_samples, x_int);
-    y_slices.push_back(slice_func);
+    z_slices.push_back(z_samples);
   }
-  return Bilerper(y_int, y_slices);
+  return Bilerper(x_int, y_int, z_slices);
 }
 
 }  // namespace numericaldists

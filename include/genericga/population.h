@@ -2,12 +2,13 @@
 #define _GENERICGA_POPULATION_H_
 
 #include <algorithm>
+#include <functional>
 #include <memory>
+#include <numeric>
 #include <vector>
 
-#include "genericga/abstract_genotype_evaluator_cache.h"
-#include "genericga/genotype_evaluator_double_cache.h"
-#include "genericga/genotype_evaluator_single_cache.h"
+#include <iostream>
+
 #include "genericga/genotype_population.h"
 #include "genericga/phenotype_strategy.h"
 
@@ -17,99 +18,159 @@ template <class Gen, class Phen>
 class Population : public GenotypePopulation<Gen> {
  public:
   Population(
-      std::unique_ptr<AbstractGenotypeEvaluatorCache<Gen, Phen>> gen_eval,
+      std::function<Phen(const Gen&)> phen_conv,
+      std::function<std::vector<float>(const std::vector<Phen>&)> fit_calc,
       std::vector<Gen> genes);
 
-  Population(std::function<Phen(const Gen&)> phen_conv,
-             std::function<float(const Phen&)> fit_calc,
-             std::vector<Gen> genes);
-
-  void SetFitnessCalculator(std::function<float(const Phen&)> fit_calc);
-  std::vector<float> GetFitnesses() const override;
+  void SetFitnessCalculator(
+      std::function<std::vector<float>(const std::vector<Phen>&)> fit_calc);
 
   void AddGenotypes(std::vector<Gen> genes) override;
-  void SetGenotypes(std::vector<Gen> genes) override;
+  void Survival(Selector& selector, int n) override;
 
+  Gen SelectGenotype(Selector& selector) const override;
+  std::vector<Gen> SelectGenotypes(Selector& selector, int n) const override;
   PhenotypeStrategy<Phen> SelectPhenotypeStrategy(Selector& selector) const;
   std::vector<PhenotypeStrategy<Phen>> SelectPhenotypeStrategies(
       Selector& selector, int n) const;
-  std::vector<PhenotypeStrategy<Phen>> GetAllPhenotypeStrategies() const;
-
-  std::vector<Gen> GetAllGenotypes() const override { return genes_; }
-  int Size() const override { return genes_.size(); }
-
- protected:
-  Gen GetGenotype(int i) const override { return genes_[i]; }
-  float GetFitness(int i) const override {
-    return gen_eval_->GetFitness(genes_[i]);
+  int GetTotalCount() const {
+    return std::accumulate(counts_.begin(), counts_.end(), 0);
   }
-  PhenotypeStrategy<Phen> GetPhenotypeStrategy(int i) const {
-    return gen_eval_->GetPhenotypeStrategy(GetGenotype(i));
-  }
+  
+  std::vector<Gen> GetGenotypes() const override { return genes_; }
+  std::vector<Phen> GetPhenotypes() const { return phens_; }
+  std::vector<float> GetFitnesses() const override { return fits_; }
+  std::vector<int> GetCounts() const { return counts_; }
+  std::vector<PhenotypeStrategy<Phen>> GetPhenotypeStrategies() const;
+
+ private:
+  void RemoveDead();
 
   std::vector<Gen> genes_;
-  std::unique_ptr<AbstractGenotypeEvaluatorCache<Gen, Phen>> gen_eval_;
+  std::vector<Phen> phens_;
+  std::vector<float> fits_;
+  std::vector<int> counts_;
+  std::function<Phen(const Gen&)> phen_conv_;
+  std::function<std::vector<float>(const std::vector<Phen>&)> fit_calc_;
 };
 
 template <class Gen, class Phen>
 Population<Gen, Phen>::Population(
-    std::unique_ptr<AbstractGenotypeEvaluatorCache<Gen, Phen>> gen_eval,
+    std::function<Phen(const Gen&)> phen_conv,
+    std::function<std::vector<float>(const std::vector<Phen>&)> fit_calc,
     std::vector<Gen> genes)
-    : genes_(std::move(genes)), gen_eval_(std::move(gen_eval)) {}
-
-template <class Gen, class Phen>
-Population<Gen, Phen>::Population(std::function<Phen(const Gen&)> phen_conv,
-                                  std::function<float(const Phen&)> fit_calc,
-                                  std::vector<Gen> genes)
     : genes_(std::move(genes)),
-      gen_eval_(std::make_unique<GenotypeEvaluatorSingleCache<Gen, Phen>>(
-          phen_conv, fit_calc)) {}
+      phen_conv_(std::move(phen_conv)) {
+  phens_.reserve(genes_.size());
+  counts_ = std::vector<int>(genes_.size(), 1);
+  for (const auto& gene : genes_) {
+    phens_.push_back(phen_conv_(gene));
+  }
+  SetFitnessCalculator(fit_calc);
+}
 
 template <class Gen, class Phen>
 void Population<Gen, Phen>::SetFitnessCalculator(
-    std::function<float(const Phen&)> fit_calc) {
-  gen_eval_->SetFitnessCalculator(std::move(fit_calc));
+    std::function<std::vector<float>(const std::vector<Phen>&)> fit_calc) {
+  fit_calc_ = std::move(fit_calc);
+  fits_ = fit_calc_(phens_);
 }
 
 template <class Gen, class Phen>
-std::vector<float> Population<Gen, Phen>::GetFitnesses() const {
-  return gen_eval_->GetFitnesses(genes_);
+void Population<Gen, Phen>::AddGenotypes(std::vector<Gen> new_genes) {
+  std::vector<Phen> new_phens;
+  new_phens.reserve(new_genes.size());
+  std::transform(new_genes.begin(), new_genes.end(),
+                 std::back_inserter(new_phens), phen_conv_);
+  auto new_fits = fit_calc_(new_phens);
+
+  std::copy(std::make_move_iterator(new_genes.begin()),
+            std::make_move_iterator(new_genes.end()),
+            std::back_inserter(genes_));
+  std::copy(std::make_move_iterator(new_phens.begin()),
+            std::make_move_iterator(new_phens.end()),
+            std::back_inserter(phens_));
+  std::copy(new_fits.begin(), new_fits.end(), std::back_inserter(fits_));
+
+  std::fill_n(std::back_inserter(counts_), new_genes.size(), 1);
 }
 
 template <class Gen, class Phen>
-void Population<Gen, Phen>::AddGenotypes(std::vector<Gen> genes) {
-  genes_.insert(genes_.end(), genes.begin(), genes.end());
-  gen_eval_->SetCache(genes_);
+void Population<Gen, Phen>::Survival(Selector& selector, int n) {
+  auto inds = selector.SelectIndices(fits_, counts_, n);
+  std::fill(counts_.begin(), counts_.end(), 0);
+  for (int ind : inds) {
+    ++counts_[ind];
+  }
+  RemoveDead();
 }
 
 template <class Gen, class Phen>
-void Population<Gen, Phen>::SetGenotypes(std::vector<Gen> genes) {
-  genes_ = genes;
-  gen_eval_->SetCache(genes_);
+void Population<Gen, Phen>::RemoveDead() {
+  int size = counts_.size();
+  for (int i = 0; i < size; ++i) {
+    if (counts_[i] == 0) {
+      while (i != size -1 && counts_[size -1] == 0) {
+        --size;
+      }
+      if (i != size - 1) {
+        genes_[i] = std::move(genes_[size - 1]);
+        phens_[i] = std::move(phens_[size - 1]);
+        fits_[i] = fits_[size - 1];
+        counts_[i] = counts_[size - 1];
+        --size;
+      }
+    }
+  }
+  genes_.erase(genes_.begin() + size, genes_.end());
+  phens_.erase(phens_.begin() + size, phens_.end());
+  fits_.resize(size);
+  counts_.resize(size);
+}
+
+template <class Gen, class Phen>
+Gen Population<Gen, Phen>::SelectGenotype(Selector& selector) const {
+  return SelectGenotypes(selector, 1)[0];
+}
+
+template <class Gen, class Phen>
+std::vector<Gen> Population<Gen, Phen>::SelectGenotypes(Selector& selector,
+                                                        int n) const {
+  auto inds = selector.SelectIndices(fits_, counts_, n);
+  std::vector<Gen> out_genes;
+  out_genes.reserve(n);
+  for (int i : inds) {
+    out_genes.push_back(genes_[i]);
+  }
+  return genes_;
 }
 
 template <class Gen, class Phen>
 PhenotypeStrategy<Phen> Population<Gen, Phen>::SelectPhenotypeStrategy(
     Selector& selector) const {
-  return gen_eval_->GetPhenotypeStrategy(
-      GenotypePopulation<Gen>::SelectGenotype(selector));
+  return SelectPhenotypeStrategies(selector, 1)[0];
 }
 
 template <class Gen, class Phen>
 std::vector<PhenotypeStrategy<Phen>>
 Population<Gen, Phen>::SelectPhenotypeStrategies(Selector& selector,
                                                  int n) const {
-  return gen_eval_->GetPhenotypeStrategies(
-      GenotypePopulation<Gen>::SelectGenotypes(selector, n));
+  auto inds = selector.SelectIndices(fits_, counts_, n);
+  std::vector<PhenotypeStrategy<Phen>> strats;
+  strats.reserve(n);
+  for (int ind : inds) {
+    strats.push_back({phens_[ind], fits_[ind]});
+  }
+  return strats;
 }
 
 template <class Gen, class Phen>
 std::vector<PhenotypeStrategy<Phen>>
-Population<Gen, Phen>::GetAllPhenotypeStrategies() const {
+Population<Gen, Phen>::GetPhenotypeStrategies() const {
   std::vector<PhenotypeStrategy<Phen>> strats;
-  strats.reserve(genes_.size());
-  for (const auto& gene : genes_) {
-    strats.emplace_back(gen_eval_->GetPhenotypeStrategy(gene));
+  strats.reserve(phens_.size());
+  for (int i = 0; i < phens_.size(); ++i) {
+    strats.push_back({phens_[i], fits_[i]});
   }
   return strats;
 }

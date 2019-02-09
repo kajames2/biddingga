@@ -1,102 +1,61 @@
 #include "numericaldists/uneven_piecewise_linear.h"
 
 #include <algorithm>
-#include <boost/container_hash/hash.hpp>
 #include <cassert>
-#include <cstddef>
 #include <iostream>
-#include <numeric>
-
-#include "numericaldists/line_ops.h"
-#include "numericaldists/bounds.h"
-#include "numericaldists/interval.h"
-#include "numericaldists/line_segment.h"
+#include <vector>
 
 namespace numericaldists {
 
-UnevenPiecewiseLinear::UnevenPiecewiseLinear(const std::vector<float>& xs,
-                                             const std::vector<float>& ys)
-    : segments_(PointsToLines(xs, ys)),
-      interval_(xs.front(), xs.back()){}
-
-UnevenPiecewiseLinear::UnevenPiecewiseLinear(
-    std::vector<LineSegment> segments) {
-  std::stable_sort(segments.begin(), segments.end(),
-                   [](const LineSegment& l1, const LineSegment& l2) {
-                     if (l1.GetXInterval().min != l2.GetXInterval().min) {
-                       return l1.GetXInterval().min < l2.GetXInterval().min;
-                     } else {
-                       return l1.GetXInterval().max < l2.GetXInterval().max;
-                     }
-                   });
-  interval_ = Interval{segments.front().GetXInterval().min,
-                       segments.back().GetXInterval().max};
-  segments_ = segments;
-}
-
-LineSegment UnevenPiecewiseLinear::GetLine(float x) const {
-  return *std::find_if(
-      segments_.begin(), segments_.end(),
-      [x](const LineSegment& line) { return line.IsInInterval(x); });
+UnevenPiecewiseLinear::UnevenPiecewiseLinear(std::vector<float> xs,
+                                             std::vector<float> ys)
+    : xs_(std::move(xs)),
+      ys_(std::move(ys)),
+      x_range_(xs_.front(), xs_.back()),
+      y_range_(ys_.front(), ys_.back()) {
+  assert(xs_.size() > 1);
+  assert(ys_.size() == xs_.size());
+  assert(std::is_sorted(xs_.begin(), xs_.end()));
 }
 
 float UnevenPiecewiseLinear::GetBid(float x) const {
-  if (x <= interval_.min) {
-    return segments_[0].GetYBounds().a;
-  } else if (x >= interval_.max) {
-    return segments_[segments_.size() - 1].GetYBounds().b;
+  if (x <= x_range_.min) {
+    return y_range_.a;
   }
-  auto line = GetLine(x);
-  return line.GetY(x);
-}
-
-template <class T>
-std::vector<int> GetOrderings(const std::vector<T>& vec) {
-  std::vector<int> indices(vec.size());
-  std::iota(indices.begin(), indices.end(), 0);
-  std::sort(indices.begin(), indices.end(),
-            [&vec](int i1, int i2) { return vec[i1] < vec[i2]; });
-  return indices;
+  if (x >= x_range_.max) {
+    return y_range_.b;
+  }
+  int i = 1;
+  while (x > xs_[i]) {
+    ++i;
+    assert(i <= xs_.size());
+  }
+  float alpha = (x - xs_[i - 1]) / (xs_[i] - xs_[i - 1]);
+  return (1 - alpha) * ys_[i - 1] + alpha * ys_[i];
 }
 
 std::vector<float> UnevenPiecewiseLinear::GetBids(std::vector<float> xs) const {
-  auto ordering = GetOrderings(xs);
-  int line_ind = 0;
-  std::vector<float> bids(xs.size());
-  for (int ind : ordering) {
-    float x = xs[ind];
-    if (x <= interval_.min) {
-      bids[ind] = segments_[0].GetYBounds().a;
-    } else if (x >= interval_.max) {
-      bids[ind] = segments_[segments_.size() - 1].GetYBounds().b;
-    } else {
-      while (!segments_[line_ind].IsInInterval(x)) {
-        ++line_ind;
-      }
-      bids[ind] = segments_[line_ind].GetY(x);
+  assert(std::is_sorted(xs.begin(), xs.end()));
+  std::vector<float> res(xs.size());
+  int start_i = 0;
+  int end_i = xs.size() - 1;
+  while (start_i <= end_i && xs[start_i] <= x_range_.min) {
+    res[start_i] = y_range_.a;
+    ++start_i;
+  }
+  while (end_i >= start_i && xs[end_i] >= x_range_.max) {
+    res[end_i] = y_range_.b;
+    --end_i;
+  }
+  int n = 1;
+  for (int i = start_i; i <= end_i; ++i) {
+    while (xs[i] > xs_[n]) {
+      ++n;
     }
+    float alpha = (xs[i] - xs_[n - 1]) / (xs_[n] - xs_[n - 1]);
+    res[i] =  (1 - alpha) * ys_[n - 1] + alpha * ys_[n];
   }
-  return bids;
-}
-
-bool operator==(const UnevenPiecewiseLinear& g1,
-                const UnevenPiecewiseLinear& g2) {
-  return g1.segments_ == g2.segments_;
-}
-
-std::size_t hash_value(const UnevenPiecewiseLinear& s) {
-  boost::hash<std::vector<LineSegment>> hasher;
-  return hasher(s.segments_);
-}
-
-std::ostream& operator<<(std::ostream& os, const UnevenPiecewiseLinear& pl) {
-  const auto separator = "\n";
-  const auto* sep = "";
-  for (auto ls : pl.segments_) {
-    os << sep << ls;
-    sep = separator;
-  }
-  return os;
+  return res;
 }
 
 }  // namespace numericaldists

@@ -4,7 +4,7 @@
 #include <random>
 #include <vector>
 
-#include "genericga/fitness_collection.h"
+#include "genericga/vector_ops.h"
 
 namespace genericga {
 namespace selector {
@@ -15,29 +15,29 @@ Tournament::Tournament(int tourn_size)
 Tournament::Tournament(int tourn_size, int seed)
     : tourn_size_(tourn_size), gen_(seed) {}
 
-std::vector<int> Tournament::SelectIndices(const FitnessCollection& col,
+std::vector<int> Tournament::SelectIndices(const std::vector<float>& fitnesses,
+                                           const std::vector<int>& counts,
                                            int n) {
-  dist = std::uniform_int_distribution<>(0, col.Size() - 1);
+  dist_ = std::discrete_distribution<>(counts.begin(), counts.end());
   std::vector<int> ind_vec(n);
-  std::vector<float> ranks = col.GetFitnessRankings();
+  std::vector<int> ranks = GetRankingsWithTies(fitnesses, MinRank);
   for (int i = 0; i < n; ++i) {
     ind_vec[i] = TournamentRound(ranks, GenerateTournamentIndices());
   }
   return ind_vec;
 }
 
-int Tournament::TournamentRound(const std::vector<float>& ranks,
+int Tournament::TournamentRound(const std::vector<int>& ranks,
                                 std::vector<int> indices) {
-  return *std::max_element(indices.begin(), indices.end(),
-                           [&ranks](int i, int j) -> bool {
-                             return ranks[i] < ranks[j];
-                           });
+  return *std::max_element(
+      indices.begin(), indices.end(),
+      [&ranks](int i, int j) -> bool { return ranks[i] < ranks[j]; });
 }
 
 std::vector<int> Tournament::GenerateTournamentIndices() {
   std::vector<int> tourn_vec(tourn_size_);
-  for (int i = 0; i < tourn_size_; ++i) {
-    tourn_vec[i] = dist(gen_);
+  for (auto& ind : tourn_vec) {
+    ind = dist_(gen_);
   }
   return tourn_vec;
 }

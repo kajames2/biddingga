@@ -10,15 +10,7 @@
 namespace genericga {
 namespace binary {
 
-// Helper struct for accessing bits from an array of bytes.
-struct ByteBitCoordinate {
-  explicit ByteBitCoordinate(int bit_index)
-      : byte(bit_index / CHAR_BIT), bit(bit_index % CHAR_BIT) {}
-  ByteBitCoordinate(int in_byte, int in_bit) : byte(in_byte), bit(in_bit) {}
-  int byte;
-  int bit;
-};
-ByteBitCoordinate NextBit(ByteBitCoordinate coord);
+struct ByteBitCoordinate;
 
 // Genotype representation as a byte array that can be flipped and swapped with
 // other genotypes.  Stores everything in little-endian at both byte and bit
@@ -43,9 +35,7 @@ class ByteArrayGenotype {
   
  private:
   std::vector<unsigned char> data_;
-  unsigned char GetBit(ByteBitCoordinate coord) {
-    return ((1u << coord.bit) & data_[coord.byte]) ? 1 : 0;
-  }
+  unsigned char GetBit(ByteBitCoordinate coord);
 };
 
 unsigned char FromSubByte(unsigned char byte, int start_bit, int n_bits);

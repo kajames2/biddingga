@@ -3,18 +3,25 @@
 #include <algorithm>
 #include <vector>
 
-#include "genericga/fitness_collection.h"
+#include "genericga/vector_ops.h"
 
 namespace genericga {
 namespace selector {
 
-std::vector<int> KeepBest::SelectIndices(const FitnessCollection& col, int n) {
+std::vector<int> KeepBest::SelectIndices(const std::vector<float>& fitnesses,
+                                         const std::vector<int>& counts,
+                                         int n) {
   std::vector<int> selected(n);
-  auto orderings = col.GetFitnessOrderings();
+  auto orderings = GetOrderings(fitnesses);
   auto it = orderings.rbegin();
+  int count = counts[*it];
   for (auto& val : selected) {
     val = *it;
-    ++it;
+    --count;
+    if (count == 0) {
+      ++it;
+      count = counts[*it];
+    }
   }
   return selected;
 }

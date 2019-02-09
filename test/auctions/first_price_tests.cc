@@ -26,6 +26,12 @@ TEST_F(FirstPriceTest, AlwaysWinTest) {
   EXPECT_NEAR(0.49, fit, epsilon);
 }
 
+TEST_F(FirstPriceTest, AlwaysTieTest) {
+  auction.AcceptStrategy([](float x) { return 0; }, 0);
+  float fit = auction.GetFitness([](float x) { return 0; }, 1);
+  EXPECT_NEAR(0.25, fit, epsilon);
+}
+
 TEST_F(FirstPriceTest, WinHalfTest) {
   auto bid_func = [](float x) { return x / 2; };
   auction.AcceptStrategy(bid_func, 0);

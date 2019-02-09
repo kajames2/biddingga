@@ -4,9 +4,8 @@
 #include <memory>
 #include <vector>
 
-#include "genericga//selector/keep_best.h"
-#include "genericga/fitness_collection.h"
 #include "genericga/selector.h"
+#include "genericga/selector/keep_best.h"
 
 namespace genericga {
 namespace selector {
@@ -14,8 +13,9 @@ namespace selector {
 class ElitismDecorator : public Selector {
  public:
   ElitismDecorator(std::unique_ptr<Selector> sel, int n_elites);
-
-  std::vector<int> SelectIndices(const FitnessCollection& col, int n) override;
+  std::vector<int> SelectIndices(const std::vector<float>& fitnesses,
+                                 const std::vector<int>& counts,
+                                 int n) override;
 
  private:
   std::unique_ptr<Selector> sel_;

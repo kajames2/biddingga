@@ -9,7 +9,7 @@ SOURCES := $(shell find $(SRCDIR) -type f -name "*.$(SRCEXT)")
 TESTS := $(shell find $(TESTDIR) -type f -name "*.$(SRCEXT)")
 OBJECTS := $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(SOURCES:.$(SRCEXT)=.o))
 TESTOBJECTS := $(patsubst $(TESTDIR)/%,$(BUILDDIR)/%,$(TESTS:.$(SRCEXT)=.o))
-CFLAGS := -std=c++17 -O3 -Wall #-fopenmp
+CFLAGS := -std=c++17 -g -O3 -Wall -fopenmp -DBOOST_MATH_OVERFLOW_ERROR_POLICY=ignore_error -fopenmp #-DNDEBUG
 LIB := -lpthread
 TESTLIB := -lpthread -lgtest -lgtest_main
 INC := -I include -I lib

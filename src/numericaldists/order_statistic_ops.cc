@@ -51,11 +51,9 @@ std::vector<float> ApproximateKthLowestOrderStatisticCDFHelper(
 PiecewiseLinear ApproximateKthLowestOrderStatisticCDF(
     const std::vector<std::function<float(float)>>& cdfs, Interval interval,
     int k, int n_samples) {
-  auto x_samples = GetMesh(interval, n_samples);
   auto cdf_samples =
       ApproximateKthLowestOrderStatisticCDFHelper(cdfs, interval, k, n_samples);
-  auto segments = PointsToLines(x_samples, cdf_samples);
-  return PiecewiseLinear(segments);
+  return PiecewiseLinear(cdf_samples, {interval.min, interval.max});
 }
 
 PiecewiseLinear ApproximateKthLowestOrderStatisticPDF(
@@ -94,8 +92,7 @@ PiecewiseLinear ApproximateKthLowestOrderStatisticPDF(
                    return bin * k * std::pow(cdf(x), k - 1) *
                           std::pow(1 - cdf(x), n_draws - k) * pdf(x);
                  });
-  auto segments = PointsToLines(x_samples, pdf_samples);
-  return PiecewiseLinear(segments);
+  return PiecewiseLinear(pdf_samples, {x_samples.front(), x_samples.back()});
 }
 
 PiecewiseLinear ApproximateHighestOrderStatisticCDF(
@@ -138,7 +135,8 @@ Bilerper ApproximateJointOrderStatisticPDF(const Distribution& dist,
 
 Bilerper ApproximateLowestHighestJointOrderStatisticPDF(
     const Distribution& dist, int n_draws, int n_samples) {
-  return ApproximateJointOrderStatisticPDF(dist, n_draws, 1, n_draws, n_samples);
+  return ApproximateJointOrderStatisticPDF(dist, n_draws, 1, n_draws,
+                                           n_samples);
 }
 
 Bilerper ApproximateLowestHighestJointOrderStatisticCDF(

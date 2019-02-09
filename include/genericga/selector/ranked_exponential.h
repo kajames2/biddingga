@@ -3,7 +3,6 @@
 
 #include <vector>
 
-#include "genericga/fitness_collection.h"
 #include "genericga/selector/roulette.h"
 
 namespace genericga {
@@ -14,7 +13,7 @@ class RankedExponential : public Roulette {
   RankedExponential() : Roulette() {}
   explicit RankedExponential(int seed) : Roulette(seed) {}
   std::vector<float> CalculateWeights(
-      const FitnessCollection& col) const override;
+      const std::vector<float>& fitnesses) const override;
 };
 
 }  // namespace selector

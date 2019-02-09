@@ -5,7 +5,7 @@
 
 #include "auctions/all_pay.h"
 #include "auctions/common_value_signal.h"
-#include "auctions/first_price.h"
+#include "auctions/winner_pay.h"
 
 #include "genericga/binary/bit_mutator.h"
 #include "genericga/binary/byte_array_genotype.h"
@@ -31,15 +31,35 @@ using namespace boost::math;
 using Gen = binary::ByteArrayGenotype;
 using Phen = PiecewiseLinear;
 
+struct BidFunctionGAConfiguration {
+  Interval value_range = {0, 1};
+  Interval bid_range = {0, 1};
+  int n_strategies = 50;
+  int n_children = 50;
+  int n_segments = 30;
+  int bit_precision = 32;
+};
+
 template <class Phen>
 SinglePopulationGA<binary::ByteArrayGenotype, Phen> BinaryGA(
     std::function<Phen(const binary::ByteArrayGenotype&)> phen_conv,
     int pop_size, int n_bits,
-    std::function<float(const Phen&)> fit = [](const Phen&) { return -1.0; }) {
+    std::function<std::vector<float>(const std::vector<Phen>&)> fit =
+        [](const std::vector<Phen>& phens) {
+          return std::vector<float>(phens.size(), -1.0);
+        }) {
   using Gen = binary::ByteArrayGenotype;
   int n_bytes = (n_bits + CHAR_BIT - 1) / CHAR_BIT;
-  auto zero_genotype = Gen(std::vector<unsigned char>(n_bytes));
-  std::vector<Gen> genes(pop_size, zero_genotype);
+  std::vector<Gen> genes;
+  auto generator = std::mt19937(std::random_device()());
+  std::uniform_int_distribution<int> dist(0, UCHAR_MAX);
+  for (int i = 0; i < pop_size; ++i) {
+    std::vector<unsigned char> rand_gene(n_bytes);
+    for (int j = 0; j < n_bytes; ++j) {
+      rand_gene[j] = static_cast<unsigned char>(dist(generator));
+    }
+    genes.emplace_back(rand_gene);
+  }
   Population<Gen, Phen> init_pop(phen_conv, fit, genes);
 
   auto children_fact = std::make_unique<ChildrenFactory<Gen>>(
@@ -102,81 +122,96 @@ struct BinaryToPiecewiseCumulative {
   Interval interval_;
 };
 
-struct BidFunctionGAConfiguration {
-  Interval value_range = {0, 1};
-  Interval bid_range = {0, 1};
-  int n_strategies = 50;
-  int n_children = 50;
-  int n_segments = 30;
-  int bit_precision = 32;
-};
+template <class BinaryToPiecewise, class Phen>
+std::unique_ptr<SinglePopulationGA<binary::ByteArrayGenotype, Phen>> MakeGA(
+    BidFunctionGAConfiguration config) {
+  int n_bits = config.n_segments * config.bit_precision;
+  binary::Encoding bid_enc{config.bit_precision, config.bid_range.min,
+                           config.bid_range.max};
+  std::vector<binary::Encoding> encodings(config.n_segments, bid_enc);
+  BinaryToPiecewise conversion(
+      BinaryToPiecewise{encodings, config.value_range});
 
-void RunFirstPrice() {
-  using BinaryToPiecewise = BinaryToPiecewiseSort;
+  return std::make_unique<SinglePopulationGA<Gen, Phen>>(
+      BinaryGA<Phen>(conversion, config.n_strategies, n_bits));
+}
 
-  std::vector<Distribution> dists{uniform_distribution<>(0, 100),
-                                  uniform_distribution<>(0, 100),
-                                  uniform_distribution<>(0, 100)};
-
-  Interval value_range = {lower(dists), upper(dists)};
-  std::vector<BidFunctionGAConfiguration> configs;
-  for (const auto& dist : dists) {
-    BidFunctionGAConfiguration config;
-    config.value_range = {lower(dist), upper(dist)};
-    config.bid_range = {0, value_range.max};
-    config.n_strategies = 2000;
-    config.n_children = 2000;
-    config.n_segments = 30;
-    config.bit_precision = 32;
-    configs.push_back(config);
-  }
-  int n_rounds = 500;
-  
-  FirstPrice auction(dists);
-
-  std::vector<std::shared_ptr<
-      multipop::SinglePopulationGAToSubGAAdapter<FirstPrice, Phen>>>
+template <class Environment, class Phen,
+          class BinaryToPiecewise = BinaryToPiecewiseSort>
+std::vector<std::shared_ptr<multipop::SubGAAdapter<Environment, Phen>>>
+MakeSubGAs(std::vector<BidFunctionGAConfiguration> configs) {
+  std::vector<std::shared_ptr<multipop::SubGAAdapter<Environment, Phen>>>
       ind_gas;
   for (int i = 0; i < configs.size(); ++i) {
-    const auto& config = configs[i];
-    int n_bits = config.n_segments * config.bit_precision;
-    binary::Encoding bid_enc{config.bit_precision, config.bid_range.min,
-                             config.bid_range.max};
-    std::vector<binary::Encoding> encodings(config.n_segments, bid_enc);
-    BinaryToPiecewise conversion(
-        BinaryToPiecewise{encodings, config.value_range});
-
-    auto ga = std::make_unique<SinglePopulationGA<Gen, Phen>>(
-        BinaryGA<Phen>(conversion, config.n_strategies, n_bits));
-
-    auto subga = std::make_shared<
-        multipop::SinglePopulationGAToSubGAAdapter<FirstPrice, Phen>>(
+    auto ga = MakeGA<BinaryToPiecewise, Phen>(std::move(configs[i]));
+    auto subga = std::make_shared<multipop::SubGAAdapter<Environment, Phen>>(
         std::move(ga), i);
     ind_gas.push_back(subga);
   }
+  return ind_gas;
+}
 
-  std::vector<std::shared_ptr<multipop::AbstractSubGA<FirstPrice>>> sub_gas(
-      ind_gas.begin(), ind_gas.end());
-  multipop::GA<FirstPrice> ga(sub_gas, auction);
+template <class Environment, class Phen>
+multipop::GA<Environment> MakeMultipopDriver(
+    const std::vector<
+        std::shared_ptr<multipop::SubGAAdapter<Environment, Phen>>>& gas,
+    Environment env) {
+  std::vector<std::shared_ptr<multipop::AbstractSubGA<Environment>>> sub_gas(
+      gas.begin(), gas.end());
+  return multipop::GA<Environment>(sub_gas, env);
+}
 
-  ga.RunRound(n_rounds);
-  std::vector<PhenotypeStrategy<Phen>> phens;
-  for (int i = 0; i < dists.size(); ++i) {
-    phens.push_back(ind_gas[i]->GetBestStrategy());
+void RunWinnerPay() {
+  std::vector<Distribution> dists{uniform_distribution<>(0, 1),
+                                  uniform_distribution<>(0, 1),
+                                  uniform_distribution<>(0, 1),
+                                  uniform_distribution<>(0, 1),
+                                  uniform_distribution<>(0, 1)};
+
+  Interval value_range = {lower(dists), upper(dists)};
+  std::vector<BidFunctionGAConfiguration> configs;
+  // for (const auto& dist : dists) {
+  for (int i = 0; i < 1; ++i) {
+    BidFunctionGAConfiguration config;
+    config.value_range = {lower(dists[i]), upper(dists[i])};
+    config.bid_range = {0, 10 * value_range.max};
+    config.n_strategies = 2000;
+    config.n_children = 2000;
+    config.n_segments = 100;
+    config.bit_precision = 32;
+    configs.push_back(std::move(config));
   }
-  for (int i = std::ceil(value_range.min); i <= std::floor(value_range.max);
-       ++i) {
-    std::cout << i << ": ";
+  int n_rounds = 1000;
+  WinnerPay auction(dists, 3, 10);
+  for (int i = 0; i < dists.size(); ++i) {
+    auction.AcceptStrategy(numericaldists::PiecewiseLinear{{0, 4/3.}, {0, 1}}, i);
+  }
+  std::cout << auction.GetFitness(numericaldists::PiecewiseLinear{{0, 4/3.}, {0, 1}}, 0) << std::endl;
+  auto gas = MakeSubGAs<WinnerPay, Phen>(std::move(configs));
+  auto driver = MakeMultipopDriver<WinnerPay, Phen>(gas, auction);
+  driver.RunRound(n_rounds);
+
+  std::vector<PhenotypeStrategy<Phen>> phens;
+  for (int i = 0; i < gas.size(); ++i) {
+    phens.push_back(gas[i]->GetBestStrategy());
+  }
+  
+  for (int i = 0; i <= 100; ++i) {
+    float value = GetSpan(value_range) / 100 * i + value_range.min;
+    std::cout << std::setw(4) << std::setprecision(2) << value << ",";
     for (int player = 0; player < phens.size(); ++player) {
-      if (!InInterval(configs[player].value_range, i)) {
-        std::cout << "---" << '\t';
+      if (!InInterval({lower(dists[player]), upper(dists[player])}, value)) {
+        std::cout << "---";
       } else {
-        std::cout << phens[player].phenotype(i) << '\t';
+        std::cout << std::setw(10) << std::setprecision(3) << phens[player].phenotype(value);
+      }
+      if (player < phens.size() -1) {
+        std::cout << ", ";
       }
     }
     std::cout << '\n';
   }
-  std::cout << "Expected Profits: ";
+  std::cout << "Expected Profits, ";
   for (auto strat : phens) {
     std::cout << "\t" << strat.fitness;
   }
@@ -184,101 +219,83 @@ void RunFirstPrice() {
 }
 
 void RunCommonValueSignal() {
-  using BinaryToPiecewise = BinaryToPiecewiseSort;
   std::vector<int> n_draws{2, 2, 2, 2};
   float epsilon = 1;
+  Interval range_range{0, 2 * epsilon};
   Interval discount_range{-1 * epsilon, 4 * epsilon};
-  int n_lines = 30;
-  int bit_precision = 32;
-  std::vector<binary::Encoding> encodings(
-      n_lines,
-      binary::Encoding{bit_precision, discount_range.min, discount_range.max});
-  int n_bits = 0;
-  for (const auto& en : encodings) {
-    n_bits += en.bit_precision;
-  }
 
-  std::vector<BinaryToPiecewise> conversions(
-      n_draws.size(), BinaryToPiecewise{encodings, discount_range});
+  std::vector<BidFunctionGAConfiguration> configs;
+  for (int i = 0; i < n_draws.size(); ++i) {
+    BidFunctionGAConfiguration config;
+    config.value_range = range_range;
+    config.bid_range = discount_range;
+    config.n_strategies = 1000;
+    config.n_children = 1000;
+    config.n_segments = 30;
+    config.bit_precision = 32;
+    configs.push_back(std::move(config));
+  }
 
   CommonValueSignal auction(n_draws, epsilon, discount_range);
-  std::vector<std::shared_ptr<multipop::AbstractSubGA<CommonValueSignal>>>
-      sub_gas;
-  std::vector<std::shared_ptr<
-      multipop::SinglePopulationGAToSubGAAdapter<CommonValueSignal, Phen>>>
-      ind_gas;
+  auto gas = MakeSubGAs<CommonValueSignal, Phen>(std::move(configs));
+  auto driver = MakeMultipopDriver<CommonValueSignal, Phen>(gas, auction);
 
-  int pop_size = 100;
-  for (int i = 0; i < n_draws.size(); ++i) {
-    auto ga = std::make_unique<SinglePopulationGA<Gen, Phen>>(
-        BinaryGA<Phen>(conversions[i], pop_size, n_bits));
-
-    auto subga = std::make_shared<
-        multipop::SinglePopulationGAToSubGAAdapter<CommonValueSignal, Phen>>(
-        std::move(ga), i);
-    sub_gas.push_back(subga);
-    ind_gas.push_back(subga);
+  for (int i = 0; i < 10; ++i) {
+    driver.RunRound(10);
+    if (i > 0) {
+      std::cout << '\r';
+    }
+    std::cout << (i + 1) * 10 << "% complete" << std::flush;
   }
-  multipop::GA<CommonValueSignal> ga(sub_gas, auction);
-  for (int i = 0; i < 1; ++i) {
-    ga.RunRound(2);
-    std::cout << (i + 1) * 10 << "% complete" << std::endl;
-  }
-
+  std::cout << std::endl;
   std::vector<PhenotypeStrategy<Phen>> phens;
   for (int i = 0; i < n_draws.size(); ++i) {
-    phens.push_back(ind_gas[i]->GetBestStrategy());
+    phens.push_back(gas[i]->GetBestStrategy());
   }
+
+  std::cout << std::fixed;
   for (int i = 0; i <= 100; ++i) {
-    float range = 2 * epsilon / 100 * i;
-    std::cout << range << ": ";
+    float value = GetSpan(range_range) / 100 * i + range_range.min;
+    std::cout << std::setprecision(2) << std::setw(4) << value << ", ";
     for (int player = 0; player < phens.size(); ++player) {
-      std::cout << phens[player].phenotype(range) << '\t';
+      std::cout << std::setprecision(3) << std::setw(5)
+                << phens[player].phenotype(value);
+      if (player < phens.size() - 1) {
+        std::cout << ", ";
+      }
     }
     std::cout << '\n';
   }
-  std::cout << "Expected Profits: ";
+  std::cout << "Expected Profits";
   for (auto strat : phens) {
-    std::cout << "\t" << strat.fitness;
+    std::cout << ", " << std::setw(6) << std::setprecision(3) << strat.fitness;
   }
   std::cout << std::endl;
 }
 
 void RunAllPay() {
-  using BinaryToPiecewise = BinaryToPiecewiseSort;
   std::vector<float> values{1, 1};
-  std::vector<binary::Encoding> encodings(30, binary::Encoding{32, 0, 1});
-  int n_bits = 0;
-  for (const auto& en : encodings) {
-    n_bits += en.bit_precision;
+  std::vector<BidFunctionGAConfiguration> configs;
+  for (float value : values) {
+    BidFunctionGAConfiguration config;
+    config.value_range = {0, value};
+    config.bid_range = {0, 1};
+    config.n_strategies = 2000;
+    config.n_children = 2000;
+    config.n_segments = 30;
+    config.bit_precision = 32;
+    configs.push_back(std::move(config));
   }
-  std::vector<BinaryToPiecewise> conversions;
-  for (auto value : values) {
-    conversions.push_back(BinaryToPiecewise{encodings, Interval{0, value}});
-  }
-
+  int n_rounds = 10000;
   AllPay auction(values);
-  std::vector<std::shared_ptr<multipop::AbstractSubGA<AllPay>>> sub_gas;
-  std::vector<
-      std::shared_ptr<multipop::SinglePopulationGAToSubGAAdapter<AllPay, Phen>>>
-      ind_gas;
 
-  int pop_size = 100;
-  for (int i = 0; i < values.size(); ++i) {
-    auto ga = std::make_unique<SinglePopulationGA<Gen, Phen>>(
-        BinaryGA<Phen>(conversions[i], pop_size, n_bits));
-    auto subga = std::make_shared<
-        multipop::SinglePopulationGAToSubGAAdapter<AllPay, Phen>>(std::move(ga),
-                                                                  i);
-    sub_gas.push_back(subga);
-    ind_gas.push_back(subga);
-  }
+  auto gas = MakeSubGAs<AllPay, Phen>(std::move(configs));
+  auto driver = MakeMultipopDriver<AllPay, Phen>(gas, auction);
+  driver.RunRound(n_rounds);
 
-  multipop::GA<AllPay> ga(sub_gas, auction);
-  ga.RunRound(10000);
   std::vector<PhenotypeStrategy<Phen>> phens;
   for (int i = 0; i < values.size(); ++i) {
-    phens.push_back(ind_gas[i]->GetBestStrategy());
+    phens.push_back(gas[i]->GetBestStrategy());
   }
   for (float i = 0; i <= 1; i += 0.01) {
     std::cout << i << ": ";
@@ -295,8 +312,8 @@ void RunAllPay() {
 }
 
 int main(int argc, char** argv) {
-  // RunAllPay();
-  //RunFirstPrice();
-  RunCommonValueSignal();
+  RunAllPay();
+  // RunWinnerPay();
+  // RunCommonValueSignal();
   return 0;
 }

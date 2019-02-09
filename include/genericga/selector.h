@@ -5,11 +5,10 @@
 
 namespace genericga {
 
-class FitnessCollection;
-
 class Selector {
  public:
-  virtual std::vector<int> SelectIndices(const FitnessCollection& col,
+  virtual std::vector<int> SelectIndices(const std::vector<float>& fitnesses,
+                                         const std::vector<int>& counts,
                                          int n) = 0;
   virtual ~Selector() {}
 };

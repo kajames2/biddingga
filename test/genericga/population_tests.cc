@@ -42,19 +42,13 @@ TEST_F(PopulationTest, AddGenotypesTest) {
   EXPECT_EQ(exp_fits, pop.GetFitnesses());
 }
 
-TEST_F(PopulationTest, SetGenotypesTest) {
-  std::vector<float> exp_fits{101, 96};
-  pop.SetGenotypes(std::vector<int>{2, 3});
-  EXPECT_EQ(exp_fits, pop.GetFitnesses());
-}
-
-TEST_F(PopulationTest, GetAllPhenotypeStrategiesTest) {
+TEST_F(PopulationTest, GetPhenotypeStrategiesTest) {
   genericga::PhenotypeStrategy<int> strat1{75, 80};
   genericga::PhenotypeStrategy<int> strat2{99, 104};
   genericga::PhenotypeStrategy<int> strat3{19, 24};
   std::vector<genericga::PhenotypeStrategy<int>> phens = {strat1, strat2,
                                                           strat3};
-  auto res = pop.GetAllPhenotypeStrategies();
+  auto res = pop.GetPhenotypeStrategies();
   EXPECT_EQ(phens[0].phenotype, res[0].phenotype);
   EXPECT_EQ(phens[0].fitness, res[0].fitness);
   EXPECT_EQ(phens[2].phenotype, res[2].phenotype);
@@ -71,7 +65,7 @@ TEST_F(PopulationTest, GetSelectPhenotypeStrategyTest) {
 
 TEST_F(PopulationDeathTest, SelectWhenEmptyDeathTest) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  pop.SetGenotypes(std::vector<int>());
+  pop.Survival(sel, 0);
   EXPECT_DEATH(pop.SelectPhenotypeStrategy(sel), "");
 }
 

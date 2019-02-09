@@ -4,7 +4,6 @@
 #include <random>
 #include <vector>
 
-#include "genericga/fitness_collection.h"
 #include "genericga/selector.h"
 
 namespace genericga {
@@ -14,9 +13,11 @@ class Roulette : public Selector {
  public:
   Roulette();
   explicit Roulette(int seed);
-  std::vector<int> SelectIndices(const FitnessCollection& col, int n) override;
+  std::vector<int> SelectIndices(const std::vector<float>& fitnesses,
+                                 const std::vector<int>& counts,
+                                 int n) override;
   virtual std::vector<float> CalculateWeights(
-      const FitnessCollection& col) const = 0;
+      const std::vector<float>& fitnesses) const = 0;
 
  private:
   std::mt19937 gen_;

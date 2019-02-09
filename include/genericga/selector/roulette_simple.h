@@ -3,7 +3,6 @@
 
 #include <vector>
 
-#include "genericga/fitness_collection.h"
 #include "genericga/selector/roulette.h"
 
 namespace genericga {
@@ -15,8 +14,8 @@ class RouletteSimple : public Roulette {
   explicit RouletteSimple(int seed) : Roulette(seed) {}
 
   std::vector<float> CalculateWeights(
-      const FitnessCollection& col) const override {
-    return col.GetFitnesses();
+      const std::vector<float>& fitnesses) const override {
+    return fitnesses;
   }
 };
 

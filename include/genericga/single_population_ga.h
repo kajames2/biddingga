@@ -22,13 +22,14 @@ class SinglePopulationGA : public AbstractSinglePopulationGA<Phen> {
                      std::unique_ptr<ChildrenFactory<Gen>> children_fact,
                      std::unique_ptr<Selector> survivor_selector =
                          std::make_unique<selector::ElitismDecorator>(
-                             std::make_unique<selector::RankedWeighted>(1.4),
+                             std::make_unique<selector::RankedWeighted>(0.6),
                              5));
   void RunRound(int n = 1) override;
   void SetFitnessCalculator(
-      std::function<float(const Phen&)> fit_calc) override;
+      std::function<std::vector<float>(const std::vector<Phen>&)> fit_calc)
+      override;
   std::vector<PhenotypeStrategy<Phen>> GetPopulation() const override {
-    return pop_.GetAllPhenotypeStrategies();
+    return pop_.GetPhenotypeStrategies();
   }
   PhenotypeStrategy<Phen> SelectStrategy(Selector& sel) override {
     return pop_.SelectPhenotypeStrategy(sel);
@@ -61,16 +62,16 @@ SinglePopulationGA<Gen, Phen>::SinglePopulationGA(
     std::unique_ptr<ChildrenFactory<Gen>> children_fact,
     std::unique_ptr<Selector> survivor_selector)
     : pop_(std::move(init_pop)),
-      n_strategies_(pop_.Size()),
-      n_children_(pop_.Size()),
+      n_strategies_(pop_.GetTotalCount()),
+      n_children_(pop_.GetTotalCount()),
       survivor_selector_(std::move(survivor_selector)),
       children_fact_(std::move(children_fact)) {}
 
 template <class Gen, class Phen>
 void SinglePopulationGA<Gen, Phen>::RunSingleRound() {
   auto children = children_fact_->GetChildren(pop_, n_children_);
-  pop_.AddGenotypes(children);
-  pop_.SetGenotypes(pop_.SelectGenotypes(*survivor_selector_, n_strategies_));
+  pop_.AddGenotypes(std::move(children));
+  pop_.Survival(*survivor_selector_, n_strategies_);
 }
 
 template <class Gen, class Phen>
@@ -82,7 +83,7 @@ void SinglePopulationGA<Gen, Phen>::RunRound(int n) {
 
 template <class Gen, class Phen>
 void SinglePopulationGA<Gen, Phen>::SetFitnessCalculator(
-    std::function<float(const Phen&)> fit_calc) {
+    std::function<std::vector<float>(const std::vector<Phen>&)> fit_calc) {
   pop_.SetFitnessCalculator(fit_calc);
 }
 

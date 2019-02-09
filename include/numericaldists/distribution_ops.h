@@ -28,6 +28,13 @@ PiecewiseLinear ApproximateRandomVariableFunctionCDF(
     const std::function<float(float, float)>& func, Interval x_int,
     Interval y_int, Interval f_int, int n_samples = 1001);
 
+PiecewiseLinear ApproximateRandomVariableFunctionCDF(
+    const std::function<std::vector<std::vector<float>>(
+        std::vector<float>, std::vector<float>)>& pdf,
+    const std::function<std::vector<std::vector<float>>(
+        std::vector<float>, std::vector<float>)>& func,
+    Interval x_int, Interval y_int, Interval f_int, int n_samples = 1001);
+
 std::function<float(float, float)> MultivariatePDFDomainTransform(
     const std::function<float(float, float)>& func,
     const std::function<float(float, float)>& x_trans,

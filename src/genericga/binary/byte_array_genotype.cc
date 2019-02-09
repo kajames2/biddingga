@@ -7,6 +7,15 @@
 namespace genericga {
 namespace binary {
 
+// Helper struct for accessing bits from an array of bytes.
+struct ByteBitCoordinate {
+  explicit ByteBitCoordinate(int bit_index)
+      : byte(bit_index / CHAR_BIT), bit(bit_index % CHAR_BIT) {}
+  ByteBitCoordinate(int in_byte, int in_bit) : byte(in_byte), bit(in_bit) {}
+  int byte;
+  int bit;
+};
+
 std::vector<float> ByteArrayGenotype::ToFloatArray(
     std::vector<Encoding> encodings) const {
   int bit = 0;
@@ -67,6 +76,10 @@ void ByteArrayGenotype::Flip(int bit_index) {
   FlipBit(data_[loc.byte], loc.bit);
 }
 
+unsigned char ByteArrayGenotype::GetBit(ByteBitCoordinate coord) {
+  return ((1u << coord.bit) & data_[coord.byte]) ? 1 : 0;
+}
+
 bool operator<(const ByteArrayGenotype& g1, const ByteArrayGenotype& g2) {
   return g1.data_ < g2.data_;
 }
@@ -109,9 +122,6 @@ void SwapBits(ByteArrayGenotype& gene1, ByteArrayGenotype& gene2, int first_bit,
   std::swap_ranges(gene1.data_.begin() + first.byte + 1,
                    gene1.data_.begin() + last.byte,
                    gene2.data_.begin() + first.byte + 1);
-  // for (int i = first.byte + 1; i < last.byte; ++i) {
-  //   std::swap(gene1.data_[i], gene2.data_[i]);
-  // }
 }
 
 // Parses all bits from start_bit to end_bit (exclusively) from a byte.

@@ -4,7 +4,7 @@
 #include "boost/math/distributions/uniform.hpp"
 #include "numericaldists/distribution.h"
 #include "numericaldists/function_ops.h"
-
+#include "numericaldists/piecewise_linear.h"
 namespace gatests {
 
 class CommonValueSignalTest : public ::testing::Test {
@@ -13,53 +13,56 @@ class CommonValueSignalTest : public ::testing::Test {
 
  protected:
   virtual void SetUp() {}
-  auctions::CommonValueSignal auction = auctions::CommonValueSignal({2, 2}, 1, {-4, 3});
+  auctions::CommonValueSignal auction = auctions::CommonValueSignal({2, 2}, 1, {-4, 4});
+  auctions::CommonValueSignal auction_single = auctions::CommonValueSignal({1, 1}, 1, {-4, 4});
+  auctions::CommonValueSignal auction_mixed = auctions::CommonValueSignal({1, 2}, 1, {-4, 4});
   float epsilon = 0.0001;
 };
 
 TEST_F(CommonValueSignalTest, AlwaysWinTest) {
-  auction.AcceptStrategy([](float x) { return 3; }, 0);
-  auction.AcceptStrategy([](float x) { return 1; }, 1);
-  float fit = auction.GetFitness([](float x) { return 1; }, 1);
+  auction.AcceptStrategy(numericaldists::PiecewiseLinear({3, 3},{0, 2}), 0);
+  auction.AcceptStrategy(numericaldists::PiecewiseLinear({1, 1},{0, 2}), 1);
+  float fit = auction.GetFitness(numericaldists::PiecewiseLinear({1, 1},{0, 2}), 1);
   EXPECT_NEAR(1, fit, epsilon);
 }
 
 TEST_F(CommonValueSignalTest, WinHalfTest) {
-  auto bid_func = [](float x) { return 0; };
+  auto bid_func = numericaldists::PiecewiseLinear({0, 0},{0, 2});
   auction.AcceptStrategy(bid_func, 0);
   auction.AcceptStrategy(bid_func, 1);
   float fit = auction.GetFitness(bid_func, 1);
   EXPECT_NEAR(-0.116666, fit, epsilon);
 }
 
-// TEST_F(CommonValueSignalTest, DecreasingBidsTest) {
-//   auto bid_func = [](float x) { return 0.5 - x / 2; };
-//   auction.AcceptStrategy(bid_func, 0);
-//   float fit = auction.GetFitness([](float x) { return x / 2; }, 1);
-//   EXPECT_NEAR(.166666, fit, epsilon);
-// }
 
-// TEST_F(CommonValueSignalTest, DecreasingBids2Test) {
-//   auto bid_func = [](float x) { return x / 2; };
-//   auction.AcceptStrategy(bid_func, 0);
-//   float fit = auction.GetFitness([](float x) { return 0.5 - 0.5 * x; }, 1);
-//   EXPECT_NEAR(0, fit, epsilon);
-// }
+TEST_F(CommonValueSignalTest, AlwaysWinSinglesTest) {
+  auction_single.AcceptStrategy(3, 0);
+  auction_single.AcceptStrategy(1, 1);
+  float fit = auction_single.GetFitness(1, 1);
+  EXPECT_NEAR(1, fit, epsilon);
+}
 
-// TEST_F(CommonValueSignalTest, NoIntersectDistsTest) {
-//   auction =
-//       auctions::CommonValueSignal(std::vector<numericaldists::Distribution>{
-//           boost::math::uniform_distribution<>(20, 40),
-//           boost::math::uniform_distribution<>(40, 60)});
-//   float epsilon = 0.001;
-//   auto bid_func = [](float x) { return 20; };
-//   auction.AcceptStrategy(bid_func, 0);
-//   auto bid_func2 = [](float x) { return 20.2; };
-//   auction.AcceptStrategy(bid_func2, 1);
-//   float fit = auction.GetFitness(bid_func, 0);
-//   EXPECT_NEAR(0, fit, epsilon);
-//   float fit2 = auction.GetFitness(bid_func2, 1);
-//   EXPECT_NEAR(29.8, fit2, epsilon);
-// }
+TEST_F(CommonValueSignalTest, WinHalfSinglesTest) {
+  auction_single.AcceptStrategy(0, 0);
+  auction_single.AcceptStrategy(0, 1);
+  float fit = auction_single.GetFitness(0, 1);
+  EXPECT_NEAR(-0.166666, fit, epsilon);
+}
+
+
+TEST_F(CommonValueSignalTest, AlwaysWinMixedSingleTest) {
+  auction_mixed.AcceptStrategy(3, 0);
+  auction_mixed.AcceptStrategy(numericaldists::PiecewiseLinear({1, 1},{0, 2}), 1);
+  float fit = auction_mixed.GetFitness(numericaldists::PiecewiseLinear({1, 1},{0, 2}), 1);
+  EXPECT_NEAR(1, fit, epsilon);
+}
+
+TEST_F(CommonValueSignalTest, AlwaysWinMixedMultiTest) {
+  auction_mixed.AcceptStrategy(1, 0);
+  auction_mixed.AcceptStrategy(numericaldists::PiecewiseLinear({3, 3},{0, 2}), 1);
+  float fit = auction_mixed.GetFitness(1, 0);
+  EXPECT_NEAR(1, fit, epsilon);
+}
+
 
 }  // namespace gatests

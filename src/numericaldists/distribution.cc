@@ -1,12 +1,19 @@
 #include "numericaldists/distribution.h"
 
 #include <algorithm>
+#include <cmath>
 #include <vector>
 
 namespace numericaldists {
 
-float lower(const Distribution& dist) { return quantile(dist, 0.000001); }
-float upper(const Distribution& dist) { return quantile(dist, 0.999999); }
+float lower(const Distribution& dist) {
+  float q = quantile(dist, 0);
+  return std::isinf(q) ? quantile(dist, 0.000001) : q;
+}
+float upper(const Distribution& dist) {
+  float q = quantile(dist, 1);
+  return std::isinf(q) ? quantile(dist, 0.999999) : q;
+}
 
 float lower(const std::vector<Distribution>& dists) {
   return lower(*std::min_element(

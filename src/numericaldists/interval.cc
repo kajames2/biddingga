@@ -8,7 +8,7 @@
 namespace numericaldists {
 
 bool InInterval(Interval interval, float val) {
-  return val >= interval.min && val < interval.max;
+  return val >= interval.min && val <= interval.max;
 }
 
 float GetSpan(Interval interval) { return interval.max - interval.min; }

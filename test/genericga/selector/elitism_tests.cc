@@ -1,6 +1,5 @@
 #include "genericga/selector/elitism_decorator.h"
 #include "genericga/selector/keep_best.h"
-#include "../sample_fitness_collection.h"
 
 #include <gtest/gtest.h>
 #include <map>
@@ -20,11 +19,12 @@ class ElitismTest : public ::testing::Test {
   }
 
   std::unique_ptr<genericga::selector::ElitismDecorator> sel;
-  SampleFitnessCollection pop;
+  std::vector<float> fitnesses = {1, 3, 6, -2};
+  std::vector<int> counts = {1, 1, 1, 1};
 };
 
 TEST_F(ElitismTest, SelectIndicesTest) {
-  auto vec = sel->SelectIndices(pop, 5);
+  auto vec = sel->SelectIndices(fitnesses, counts, 5);
   ASSERT_EQ(5, vec.size());
   std::map<int, int> counts;
   for (int val : vec) {
@@ -40,7 +40,7 @@ TEST_F(ElitismTest, SelectIndicesTest) {
 }
 
 TEST_F(ElitismTest, AllElitesTest) {
-  auto vec = sel->SelectIndices(pop, 1);
+  auto vec = sel->SelectIndices(fitnesses, counts, 1);
   ASSERT_EQ(1, vec.size());
   ASSERT_EQ(2, vec[0]);
 }
