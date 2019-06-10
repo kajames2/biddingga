@@ -1,5 +1,5 @@
-#ifndef _GENERICGA_BIT_MUTATOR_H_
-#define _GENERICGA_BIT_MUTATOR_H_
+#ifndef GENERICGA_BINARY_BIT_MUTATOR_H_
+#define GENERICGA_BINARY_BIT_MUTATOR_H_
 
 #include <random>
 
@@ -11,8 +11,8 @@ namespace binary {
 
 class BitMutator : public Mutator<ByteArrayGenotype> {
  public:
-  explicit BitMutator(int exp_bit_muts);
-  BitMutator(int exp_bit_muts, int seed);
+  explicit BitMutator(float exp_bit_muts);
+  BitMutator(float exp_bit_muts, int seed);
   void operator()(ByteArrayGenotype& gene) override;
 
  private:
@@ -25,4 +25,4 @@ class BitMutator : public Mutator<ByteArrayGenotype> {
 }  // namespace binary
 }  // namespace genericga
 
-#endif  // _GENERICGA_MUTATOR_H_
+#endif  // GENERICGA_BINARY_BIT_MUTATOR_H_

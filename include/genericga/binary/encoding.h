@@ -1,17 +1,17 @@
-#ifndef _GENERICGA_BINARY_ENCODING_H_
-#define _GENERICGA_BINARY_ENCODING_H_
+#ifndef GENERICGA_BINARY_FLOAT_ENCODING_H_
+#define GENERICGA_BINARY_FLOAT_ENCODING_H_
 
 namespace genericga {
 namespace binary {
 
-struct Encoding {
-  int bit_precision;
+struct FloatEncoding {
   float min;
   float max;
+  int bit_precision = 32;
   bool is_gray_coded = true;
 };
 
 }  // namespace binary
 }  // namespace genericga
 
-#endif  // _GENERICGA_BINARY_ENCODING_H_
+#endif  // GENERICGA_BINARY_FLOAT_ENCODING_H_

@@ -6,8 +6,8 @@
 
 #include "genericga/vector_ops.h"
 
-namespace genericga{
-namespace selector{
+namespace genericga {
+namespace selector {
 
 std::vector<float> RankedExponential::CalculateWeights(
     const std::vector<float>& fitnesses) const {
@@ -17,5 +17,5 @@ std::vector<float> RankedExponential::CalculateWeights(
   return ranks;
 }
 
-}  // namespace genericga
 }  // namespace selector
+}  // namespace genericga

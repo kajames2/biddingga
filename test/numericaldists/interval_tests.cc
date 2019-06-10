@@ -21,7 +21,7 @@ TEST_F(IntervalTest, InIntervalTest) {
   EXPECT_FALSE(InInterval(interval, 0));
   EXPECT_TRUE(InInterval(interval, 5));
   EXPECT_TRUE(InInterval(interval, 8));
-  EXPECT_FALSE(InInterval(interval, 10));
+  EXPECT_TRUE(InInterval(interval, 10));
   EXPECT_FALSE(InInterval(interval, 15));
 }
 

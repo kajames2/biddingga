@@ -1,5 +1,5 @@
-#ifndef _GENERICGA_CROSSOVER_H_
-#define _GENERICGA_CROSSOVER_H_
+#ifndef GENERICGA_CROSSOVER_H_
+#define GENERICGA_CROSSOVER_H_
 
 namespace genericga {
 
@@ -7,9 +7,9 @@ namespace genericga {
 template <class Gen>
 class Crossover {
  public:
-  virtual void operator()(Gen& genotype1, Gen& genotype2);
+  virtual void operator()(Gen& genotype1, Gen& genotype2) = 0;
   virtual ~Crossover() {}
 };
 }  // namespace genericga
 
-#endif  // _GENERICGA_CROSSOVER_H_
+#endif  // GENERICGA_CROSSOVER_H_

@@ -1,5 +1,7 @@
-#ifndef _GENERICGA_GENOTYPE_POPULATION_H_
-#define _GENERICGA_GENOTYPE_POPULATION_H_
+#ifndef GENERICGA_GENOTYPE_POPULATION_H_
+#define GENERICGA_GENOTYPE_POPULATION_H_
+
+#include <vector>
 
 #include "genericga/selector.h"
 
@@ -18,4 +20,4 @@ class GenotypePopulation {
 
 }  // namespace genericga
 
-#endif  // _GENERICGA_GENOTYPE_POPULATION_H_
+#endif  // GENERICGA_GENOTYPE_POPULATION_H_

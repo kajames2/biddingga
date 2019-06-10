@@ -1,5 +1,5 @@
-#ifndef _GENERICGA_SELECTOR_RANKED_WEIGHTED_H_
-#define _GENERICGA_SELECTOR_RANKED_WEIGHTED_H_
+#ifndef GENERICGA_SELECTOR_RANKED_WEIGHTED_H_
+#define GENERICGA_SELECTOR_RANKED_WEIGHTED_H_
 
 #include <cassert>
 #include <vector>
@@ -14,7 +14,7 @@ namespace selector {
 // a linear combination of the two
 class RankedWeighted : public Roulette {
  public:
-  RankedWeighted(float weight) : Roulette(), weight_(weight) {
+  explicit RankedWeighted(float weight) : Roulette(), weight_(weight) {
     assert(weight >= 0 && weight <= 1);
   }
   explicit RankedWeighted(float weight, int seed)
@@ -31,4 +31,4 @@ class RankedWeighted : public Roulette {
 }  // namespace selector
 }  // namespace genericga
 
-#endif  // _GENERICGA_SELECTOR_RANKED_WEIGHTED_H_
+#endif  // GENERICGA_SELECTOR_RANKED_WEIGHTED_H_

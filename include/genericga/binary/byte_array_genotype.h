@@ -1,11 +1,14 @@
-#ifndef _GENERICGA_BINARY_BYTE_ARRAY_GENOTYPE_H_
-#define _GENERICGA_BINARY_BYTE_ARRAY_GENOTYPE_H_
+#ifndef GENERICGA_BINARY_BYTE_ARRAY_GENOTYPE_H_
+#define GENERICGA_BINARY_BYTE_ARRAY_GENOTYPE_H_
 
-#include "genericga/binary/encoding.h"
+#include <eigen3/Eigen/Core>
 
 #include <cassert>
 #include <climits>
 #include <vector>
+
+#include "genericga/binary/float_encoding.h"
+#include "genericga/binary/int_encoding.h"
 
 namespace genericga {
 namespace binary {
@@ -21,7 +24,9 @@ class ByteArrayGenotype {
   ByteArrayGenotype() {}
   explicit ByteArrayGenotype(std::vector<unsigned char> data) : data_(data) {}
   void Flip(int bit);
-  std::vector<float> ToFloatArray(std::vector<Encoding> encodings) const;
+  std::vector<int> ToIntArray(std::vector<IntEncoding> encodings) const;
+  std::vector<float> ToFloatArray(std::vector<FloatEncoding> encodings) const;
+  Eigen::ArrayXf ToEigenFloatArray(std::vector<FloatEncoding> encodings) const;
   unsigned int FromGrayCodeBits(int start_bit, int n_bits) const;
   unsigned int FromBits(int start_bit, int n_bits) const;
   friend void SwapBits(ByteArrayGenotype& gene1, ByteArrayGenotype& gene2,
@@ -29,10 +34,12 @@ class ByteArrayGenotype {
   unsigned char& operator[](int index) { return data_[index]; }
   int NBytes() const { return data_.size(); }
   int NBits() const { return data_.size() * CHAR_BIT; }
-  friend bool operator<(const ByteArrayGenotype &g1, const ByteArrayGenotype &g2);
-  friend bool operator==(const ByteArrayGenotype &g1, const ByteArrayGenotype &g2);
+  friend bool operator<(const ByteArrayGenotype& g1,
+                        const ByteArrayGenotype& g2);
+  friend bool operator==(const ByteArrayGenotype& g1,
+                         const ByteArrayGenotype& g2);
   friend std::size_t hash_value(const ByteArrayGenotype& s);
-  
+
  private:
   std::vector<unsigned char> data_;
   unsigned char GetBit(ByteBitCoordinate coord);
@@ -51,4 +58,4 @@ void SwapBits(ByteArrayGenotype& gene1, ByteArrayGenotype& gene2, int first_bit,
 }  // namespace binary
 }  // namespace genericga
 
-#endif  // _GENERICGA_BINARY_GENOTYPE_H_
+#endif  // GENERICGA_BINARY_BYTE_ARRAY_GENOTYPE_H_

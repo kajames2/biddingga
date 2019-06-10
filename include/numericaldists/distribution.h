@@ -1,5 +1,5 @@
-#ifndef _NUMERICALDISTS_DISTRIBUTION_H_
-#define _NUMERICALDISTS_DISTRIBUTION_H_
+#ifndef NUMERICALDISTS_DISTRIBUTION_H_
+#define NUMERICALDISTS_DISTRIBUTION_H_
 
 #include <boost/math/distributions.hpp>
 
@@ -55,4 +55,4 @@ float upper(const std::vector<Distribution>& dists);
 
 }  // namespace numericaldists
 
-#endif  // _NUMERICALDISTS_DISTRIBUTION_H_
+#endif  // NUMERICALDISTS_DISTRIBUTION_H_

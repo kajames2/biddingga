@@ -1,8 +1,12 @@
 #include "genericga/binary/byte_array_genotype.h"
-#include "genericga/binary/encoding.h"
 
 #include <boost/functional/hash.hpp>
+#include <eigen3/Eigen/Core>
+
 #include <cassert>
+
+#include "genericga/binary/float_encoding.h"
+#include "genericga/binary/int_encoding.h"
 
 namespace genericga {
 namespace binary {
@@ -16,8 +20,29 @@ struct ByteBitCoordinate {
   int bit;
 };
 
+std::vector<int> ByteArrayGenotype::ToIntArray(
+    std::vector<IntEncoding> encodings) const {
+  int bit = 0;
+  std::vector<int> res;
+  res.reserve(encodings.size());
+  for (auto encoding : encodings) {
+    unsigned int int_conversion;
+    if (encoding.is_gray_coded) {
+      int_conversion = FromGrayCodeBits(bit, encoding.n_bits);
+    } else {
+      int_conversion = FromBits(bit, encoding.n_bits);
+    }
+    bit += encoding.n_bits;
+    double val = static_cast<double>(int_conversion);
+    res.push_back(static_cast<int>(val * (encoding.max - encoding.min) /
+                                       std::pow(2, encoding.n_bits) +
+                                   encoding.min));
+  }
+  return res;
+}
+
 std::vector<float> ByteArrayGenotype::ToFloatArray(
-    std::vector<Encoding> encodings) const {
+    std::vector<FloatEncoding> encodings) const {
   int bit = 0;
   std::vector<float> res;
   res.reserve(encodings.size());
@@ -34,6 +59,13 @@ std::vector<float> ByteArrayGenotype::ToFloatArray(
                   encoding.min);
   }
   return res;
+}
+
+Eigen::ArrayXf ByteArrayGenotype::ToEigenFloatArray(
+    std::vector<FloatEncoding> encodings) const {
+  std::vector<float> vec = ToFloatArray(encodings);
+  Eigen::ArrayXf ret = Eigen::Map<Eigen::ArrayXf>(vec.data(), vec.size());
+  return ret;
 }
 
 unsigned int ByteArrayGenotype::FromBits(int start_bit, int n_bits) const {

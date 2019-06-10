@@ -1,13 +1,13 @@
-#ifndef _GENERICGA_POPULATION_H_
-#define _GENERICGA_POPULATION_H_
+#ifndef GENERICGA_POPULATION_H_
+#define GENERICGA_POPULATION_H_
 
 #include <algorithm>
 #include <functional>
+#include <iostream>
 #include <memory>
 #include <numeric>
+#include <utility>
 #include <vector>
-
-#include <iostream>
 
 #include "genericga/genotype_population.h"
 #include "genericga/phenotype_strategy.h"
@@ -36,7 +36,7 @@ class Population : public GenotypePopulation<Gen> {
   int GetTotalCount() const {
     return std::accumulate(counts_.begin(), counts_.end(), 0);
   }
-  
+
   std::vector<Gen> GetGenotypes() const override { return genes_; }
   std::vector<Phen> GetPhenotypes() const { return phens_; }
   std::vector<float> GetFitnesses() const override { return fits_; }
@@ -59,8 +59,7 @@ Population<Gen, Phen>::Population(
     std::function<Phen(const Gen&)> phen_conv,
     std::function<std::vector<float>(const std::vector<Phen>&)> fit_calc,
     std::vector<Gen> genes)
-    : genes_(std::move(genes)),
-      phen_conv_(std::move(phen_conv)) {
+    : genes_(std::move(genes)), phen_conv_(std::move(phen_conv)) {
   phens_.reserve(genes_.size());
   counts_ = std::vector<int>(genes_.size(), 1);
   for (const auto& gene : genes_) {
@@ -105,14 +104,19 @@ void Population<Gen, Phen>::Survival(Selector& selector, int n) {
   RemoveDead();
 }
 
+// 0-count strategies are "Dead".  Move non-dead from the end to take their
+// place, and then truncate the vectors
 template <class Gen, class Phen>
 void Population<Gen, Phen>::RemoveDead() {
   int size = counts_.size();
   for (int i = 0; i < size; ++i) {
+    // Find an open spot due to a dead strategy
     if (counts_[i] == 0) {
-      while (i != size -1 && counts_[size -1] == 0) {
+      // Find the first non-dead strategy from the end
+      while (i != size - 1 && counts_[size - 1] == 0) {
         --size;
       }
+      // Fill in the hole with the non-dead strategy
       if (i != size - 1) {
         genes_[i] = std::move(genes_[size - 1]);
         phens_[i] = std::move(phens_[size - 1]);
@@ -122,6 +126,7 @@ void Population<Gen, Phen>::RemoveDead() {
       }
     }
   }
+  // Truncate the lists
   genes_.erase(genes_.begin() + size, genes_.end());
   phens_.erase(phens_.begin() + size, phens_.end());
   fits_.resize(size);
@@ -176,4 +181,4 @@ Population<Gen, Phen>::GetPhenotypeStrategies() const {
 }
 
 }  // namespace genericga
-#endif  // _GENERICGA_POPULATION_H_
+#endif  // GENERICGA_POPULATION_H_

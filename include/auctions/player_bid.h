@@ -1,5 +1,5 @@
-#ifndef _BIDDING_PLAYER_BID_H_
-#define _BIDDING_PLAYER_BID_H_
+#ifndef BIDDING_PLAYER_BID_H_
+#define BIDDING_PLAYER_BID_H_
 
 #include "bidding/piecewise_linear_function.h"
 
@@ -12,4 +12,4 @@ struct PlayerBid {
 
 }  // namespace bidding
 
-#endif  // _BIDDING_PLAYER_BID_H_
+#endif  // BIDDING_PLAYER_BID_H_

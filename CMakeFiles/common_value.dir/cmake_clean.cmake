@@ -1,0 +1,41 @@
+file(REMOVE_RECURSE
+  "CMakeFiles/common_value.dir/common_value.cc.obj"
+  "CMakeFiles/common_value.dir/src/auctions/first_price.cc.obj"
+  "CMakeFiles/common_value.dir/src/auctions/second_price.cc.obj"
+  "CMakeFiles/common_value.dir/src/auctions/all_pay.cc.obj"
+  "CMakeFiles/common_value.dir/src/auctions/common_value_signal.cc.obj"
+  "CMakeFiles/common_value.dir/src/auctions/common_value_signal_second.cc.obj"
+  "CMakeFiles/common_value.dir/src/auctions/first_price_reverse.cc.obj"
+  "CMakeFiles/common_value.dir/src/auctions/first_price_2d.cc.obj"
+  "CMakeFiles/common_value.dir/src/genericga/vector_ops.cc.obj"
+  "CMakeFiles/common_value.dir/src/genericga/selector/roulette_zeroed.cc.obj"
+  "CMakeFiles/common_value.dir/src/genericga/selector/keep_best.cc.obj"
+  "CMakeFiles/common_value.dir/src/genericga/selector/roulette.cc.obj"
+  "CMakeFiles/common_value.dir/src/genericga/selector/tournament.cc.obj"
+  "CMakeFiles/common_value.dir/src/genericga/selector/tournament_mixed.cc.obj"
+  "CMakeFiles/common_value.dir/src/genericga/selector/tournament_poisson.cc.obj"
+  "CMakeFiles/common_value.dir/src/genericga/selector/elitism_decorator.cc.obj"
+  "CMakeFiles/common_value.dir/src/genericga/selector/ranked_weighted.cc.obj"
+  "CMakeFiles/common_value.dir/src/genericga/selector/ranked_exponential.cc.obj"
+  "CMakeFiles/common_value.dir/src/genericga/binary/bit_mutator.cc.obj"
+  "CMakeFiles/common_value.dir/src/genericga/binary/byte_array_genotype.cc.obj"
+  "CMakeFiles/common_value.dir/src/genericga/binary/single_point_crossover.cc.obj"
+  "CMakeFiles/common_value.dir/src/numericaldists/distribution.cc.obj"
+  "CMakeFiles/common_value.dir/src/numericaldists/interval.cc.obj"
+  "CMakeFiles/common_value.dir/src/numericaldists/function_ops.cc.obj"
+  "CMakeFiles/common_value.dir/src/numericaldists/distribution_ops.cc.obj"
+  "CMakeFiles/common_value.dir/src/numericaldists/order_statistic_ops.cc.obj"
+  "CMakeFiles/common_value.dir/src/numericaldists/bounds.cc.obj"
+  "CMakeFiles/common_value.dir/src/numericaldists/combination_generation.cc.obj"
+  "CMakeFiles/common_value.dir/src/numericaldists/scatter.cc.obj"
+  "CMakeFiles/common_value.dir/src/numericaldists/grid_multi.cc.obj"
+  "bin/common_value.pdb"
+  "bin/common_value.exe"
+  "bin/common_value.exe.manifest"
+  "bin/libcommon_value.dll.a"
+)
+
+# Per-language clean rules from dependency scanning.
+foreach(lang CXX)
+  include(CMakeFiles/common_value.dir/cmake_clean_${lang}.cmake OPTIONAL)
+endforeach()

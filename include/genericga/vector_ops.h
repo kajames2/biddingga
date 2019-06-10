@@ -1,5 +1,5 @@
-#ifndef _GENERICGA_VECTOR_OPS_H_
-#define _GENERICGA_VECTOR_OPS_H_
+#ifndef GENERICGA_VECTOR_OPS_H_
+#define GENERICGA_VECTOR_OPS_H_
 
 #include <algorithm>
 #include <functional>
@@ -48,9 +48,7 @@ std::vector<int> GetRankings(const std::vector<T>& vec) {
   return GetOrderings(GetOrderings(vec));
 }
 
-// Gets ranking where ties are assigned the average of the ranks at that value.
-// Ex. values of 5,6,5,1,5 have ranks: 2,4,2,0,2 (2 = mean(1,2,3)). Decimal
-// ranks possible.
+// Gets ranking where ties are assigned according to a tibreaker function.
 template <class T, class Tiebreaker>
 auto GetRankingsWithTies(const std::vector<T>& vec, Tiebreaker tiebreaker)
     -> std::vector<typename std::result_of<Tiebreaker(int, int, int)>::type> {
@@ -97,4 +95,4 @@ std::vector<T> KeyDifference(const std::vector<T>& keys, const Set& set) {
 
 }  // namespace genericga
 
-#endif  // _GENERICGA_VECTOR_OPS_H_
+#endif  // GENERICGA_VECTOR_OPS_H_

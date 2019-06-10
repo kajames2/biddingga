@@ -1,14 +1,17 @@
-#ifndef _GENERICGA_CHILDREN_FACTORY_H_
-#define _GENERICGA_CHILDREN_FACTORY_H_
+#ifndef GENERICGA_CHILDREN_FACTORY_H_
+#define GENERICGA_CHILDREN_FACTORY_H_
 
-#include <memory>
-#include <vector>
 #include <iostream>
+#include <memory>
+#include <utility>
+#include <vector>
+
 #include "genericga/crossover.h"
 #include "genericga/genotype_population.h"
 #include "genericga/mutator.h"
 #include "genericga/selector.h"
 #include "genericga/selector/tournament.h"
+#include "genericga/selector/ranked_weighted.h"
 
 namespace genericga {
 
@@ -19,7 +22,8 @@ class ChildrenFactory {
  public:
   ChildrenFactory(std::unique_ptr<Crossover<Gen>> crossover,
                   std::unique_ptr<Mutator<Gen>> mutator,
-                  std::unique_ptr<Selector> parent_selector = std::make_unique<selector::Tournament>(2));
+                  std::unique_ptr<Selector> parent_selector =
+                  std::make_unique<selector::RankedWeighted>(0.6));
   std::vector<Gen> GetChildren(const GenotypePopulation<Gen>& pop_,
                                int n_children_);
 
@@ -69,4 +73,4 @@ void ChildrenFactory<Gen>::ConductMutation(std::vector<Gen>& children) {
 
 }  // namespace genericga
 
-#endif  // _GENERICGA_CHILDREN_FACTORY_H_
+#endif  // GENERICGA_CHILDREN_FACTORY_H_

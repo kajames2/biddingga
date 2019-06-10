@@ -1,7 +1,8 @@
-#ifndef _GENERICGA_SINGLE_POPULATION_GA_H_
-#define _GENERICGA_SINGLE_POPULATION_GA_H_
+#ifndef GENERICGA_SINGLE_POPULATION_GA_H_
+#define GENERICGA_SINGLE_POPULATION_GA_H_
 
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "genericga/abstract_single_population_ga.h"
@@ -11,6 +12,7 @@
 #include "genericga/selector.h"
 #include "genericga/selector/elitism_decorator.h"
 #include "genericga/selector/keep_best.h"
+#include "genericga/selector/keep_commonest.h"
 #include "genericga/selector/ranked_weighted.h"
 
 namespace genericga {
@@ -23,12 +25,12 @@ class SinglePopulationGA : public AbstractSinglePopulationGA<Phen> {
                      std::unique_ptr<Selector> survivor_selector =
                          std::make_unique<selector::ElitismDecorator>(
                              std::make_unique<selector::RankedWeighted>(0.6),
-                             5));
+                             1));
   void RunRound(int n = 1) override;
   void SetFitnessCalculator(
       std::function<std::vector<float>(const std::vector<Phen>&)> fit_calc)
       override;
-  std::vector<PhenotypeStrategy<Phen>> GetPopulation() const override {
+  std::vector<PhenotypeStrategy<Phen>> GetPopulation() const {
     return pop_.GetPhenotypeStrategies();
   }
   PhenotypeStrategy<Phen> SelectStrategy(Selector& sel) override {
@@ -45,6 +47,13 @@ class SinglePopulationGA : public AbstractSinglePopulationGA<Phen> {
     return SelectStrategies(best_sel, n);
   }
 
+  PhenotypeStrategy<Phen> GetCommonestStrategy() override {
+    return SelectStrategy(commonest_sel);
+  }
+  std::vector<PhenotypeStrategy<Phen>> GetCommonestStrategies(int n) override {
+    return SelectStrategies(commonest_sel, n);
+  }
+
  private:
   void RunSingleRound();
 
@@ -52,6 +61,7 @@ class SinglePopulationGA : public AbstractSinglePopulationGA<Phen> {
   int n_strategies_;
   int n_children_;
   selector::KeepBest best_sel;
+  selector::KeepCommonest commonest_sel;
   std::unique_ptr<Selector> survivor_selector_;
   std::unique_ptr<ChildrenFactory<Gen>> children_fact_;
 };
@@ -65,7 +75,9 @@ SinglePopulationGA<Gen, Phen>::SinglePopulationGA(
       n_strategies_(pop_.GetTotalCount()),
       n_children_(pop_.GetTotalCount()),
       survivor_selector_(std::move(survivor_selector)),
-      children_fact_(std::move(children_fact)) {}
+      children_fact_(std::move(children_fact)),
+      best_sel(),
+      commonest_sel() {}
 
 template <class Gen, class Phen>
 void SinglePopulationGA<Gen, Phen>::RunSingleRound() {
@@ -89,4 +101,4 @@ void SinglePopulationGA<Gen, Phen>::SetFitnessCalculator(
 
 }  // namespace genericga
 
-#endif  // _GENERICGA_SINGLE_POPULATION_GA_H_
+#endif  // GENERICGA_SINGLE_POPULATION_GA_H_

@@ -1,5 +1,5 @@
-#ifndef _GENERICGA_SELECTOR_KEEP_BEST_H_
-#define _GENERICGA_SELECTOR_KEEP_BEST_H_
+#ifndef GENERICGA_SELECTOR_KEEP_BEST_H_
+#define GENERICGA_SELECTOR_KEEP_BEST_H_
 
 #include <vector>
 
@@ -19,4 +19,4 @@ class KeepBest : public Selector {
 }  // namespace selector
 }  // namespace genericga
 
-#endif  // _GENERICGA_SELECTOR_KEEP_BEST_H_
+#endif  // GENERICGA_SELECTOR_KEEP_BEST_H_

@@ -1,5 +1,5 @@
-#ifndef _GENERICGA_SELECTOR_TOURNAMENT_H_
-#define _GENERICGA_SELECTOR_TOURNAMENT_H_
+#ifndef GENERICGA_SELECTOR_TOURNAMENT_H_
+#define GENERICGA_SELECTOR_TOURNAMENT_H_
 
 #include <random>
 #include <vector>
@@ -11,14 +11,13 @@ namespace selector {
 
 class Tournament : public Selector {
  public:
-  Tournament(int tourn_size);
+  explicit Tournament(int tourn_size);
   Tournament(int tourn_size, int seed);
 
   std::vector<int> SelectIndices(const std::vector<float>& fitnesses,
                                  const std::vector<int>& counts,
                                  int n) override;
-  int TournamentRound(const std::vector<int>& ranks,
-                      std::vector<int> entrants);
+  int TournamentRound(const std::vector<int>& ranks, std::vector<int> entrants);
   std::vector<int> GenerateTournamentIndices();
 
  private:
@@ -30,4 +29,4 @@ class Tournament : public Selector {
 }  // namespace selector
 }  // namespace genericga
 
-#endif  // _GENERICGA_SELECTOR_TOURNAMENT_H_
+#endif  // GENERICGA_SELECTOR_TOURNAMENT_H_

@@ -1,5 +1,5 @@
-#ifndef _AUCTIONS_WINNER_PAY_H_
-#define _AUCTIONS_WINNER_PAY_H_
+#ifndef AUCTIONS_WINNER_PAY_H_
+#define AUCTIONS_WINNER_PAY_H_
 
 #include <omp.h>
 #include <functional>
@@ -50,4 +50,4 @@ class WinnerPay {
 
 }  // namespace auctions
 
-#endif  // _AUCTIONS_WINNER_PAY_H_
+#endif  // AUCTIONS_WINNER_PAY_H_

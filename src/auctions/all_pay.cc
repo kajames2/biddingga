@@ -1,80 +1,103 @@
 #include "auctions/all_pay.h"
 
-#include <boost/math/distributions/uniform.hpp>
-#include <boost/math/quadrature/gauss_kronrod.hpp>
+#include <algorithm>
+#include <iostream>
+
+#include "numericaldists/distribution.h"
 #include "numericaldists/distribution_ops.h"
 #include "numericaldists/function_ops.h"
-#include "numericaldists/interval.h"
 #include "numericaldists/order_statistic_ops.h"
 
-using namespace boost::math;
+#include <omp.h>
+#include <eigen3/Eigen/Core>
+#include <iostream>
+
 using namespace numericaldists;
+using namespace Eigen;
 
 namespace auctions {
 
-AllPay::AllPay(std::vector<float> values)
-    : bid_cdf_funcs_(values.size()),
-      bid_pdf_funcs_(values.size()),
-      values_(values),
-      n_players_(values.size()) {}
-
-float AllPay::GetValue(float bid, float value) const { return value; }
-
-void AllPay::AcceptStrategy(std::function<float(float)> cdf, int id) {
-  bid_cdf_funcs_[id] = cdf;
-  bid_pdf_funcs_[id] = ApproximateDerivative(cdf, Interval{0, values_[id]});
-}
-
-float ExpectedProfitTiesAtZero(
-    const std::vector<std::function<float(float)>>& bid_cdfs, float value,
-    int id) {
-  int n_players = bid_cdfs.size();
-  float prob_all_zero = 1;
-  for (int j = 0; j < n_players; ++j) {
-    prob_all_zero *= bid_cdfs[j](0);
+AllPay::AllPay(const std::vector<Distribution>& value_dists,
+               int n_internal_samples)
+    : bid_cdfs_(value_dists.size()),
+      n_players_(value_dists.size()),
+      n_internal_samples_(n_internal_samples),
+      max_bid_(upper(value_dists)) {
+  utility_funcs_ = std::vector<std::function<double(double)>>(
+      n_players_, [](double val) { return val; });
+  prob_weight_funcs_ = std::vector<std::function<double(double)>>(
+      n_players_, [](double prob) { return prob; });
+  for (const auto& dist : value_dists) {
+    ArrayXd values =
+        ArrayXd::LinSpaced(n_internal_samples, lower(dist), upper(dist));
+    ArrayXd pdfs =
+        values.unaryExpr([&dist](double x) -> double { return pdf(dist, x); });
+    value_pdfs_.push_back({values, pdfs});
   }
-  return 1. / n_players * value * prob_all_zero;
 }
 
-float AllPay::GetFitness(const std::function<float(float)>& cdf_func,
-                         int id) const {
-  float exp_profit = quadrature::gauss_kronrod<float, 61>::integrate(
-      [this, &cdf_func, id](float bid) {
-        return GetIntegrand(cdf_func, id, bid);
-      },
-      0, values_[id], 0, 0);
+void AllPay::AcceptStrategy(const Scatter& bids, int id) {
+  ArrayXd bid_range = ArrayXd::LinSpaced(
+      n_internal_samples_, bids.ys.minCoeff(), bids.ys.maxCoeff());
+  ArrayXd interp_bids = Interpolate(bids, value_pdfs_[id].xs);
+  ArrayXd cdf = RandomVariableFunctionCDF(
+      value_pdfs_[id].xs, value_pdfs_[id].ys, interp_bids, bid_range);
+  bid_cdfs_[id] = {bid_range, cdf};
+}
 
-  exp_profit += ExpectedProfitTiesAtZero(bid_cdf_funcs_, values_[id], id);
-  float prob_no_other_val = 1;
-  float prob_no_above = 1;
+
+float AllPay::GetFitness(const Scatter& bids_in, int id) const {
+  ArrayXd integrate_vals =
+      ArrayXd::LinSpaced((bids_in.xs.size() - 1) * 3, bids_in.xs(0),
+                         bids_in.xs(bids_in.xs.size() - 1));
+  ArrayXd bids = Interpolate(bids_in, integrate_vals);
+  ArrayXd profits = integrate_vals - bids;
+  ArrayXd win_probs = ArrayXd::Ones(integrate_vals.size());
   for (int j = 0; j < n_players_; ++j) {
     if (j != id) {
-      if (values_[j] == values_[id]) {
-        prob_no_other_val *= bid_cdf_funcs_[j](values_[id]);
-      } else {
-        prob_no_above *= bid_cdf_funcs_[j](values_[id]);
-      }
+      win_probs *= Interpolate(bid_cdfs_[j], bids);
     }
   }
-  float prob_val = (1 - cdf_func(values_[id]));
-  exp_profit += (0 - values_[id]) * (1 - prob_no_above) * prob_val;
-  exp_profit += ((1. / n_players_ * values_[id]) - values_[id]) *
-                (1 - prob_no_other_val) * prob_no_above * prob_val;
-  // exp_profit += (values_[id] - values_[id]) * prob_no_other_val *
-  // prob_no_above * prob_val;
-  return exp_profit;
+  ArrayXd utils =
+      profits.unaryExpr(utility_funcs_[id]) *
+          win_probs.unaryExpr(prob_weight_funcs_[id]) +
+      (-bids).unaryExpr(utility_funcs_[id]) * (1 - win_probs).unaryExpr(prob_weight_funcs_[id]);
+  ArrayXd likelihoods = Interpolate(value_pdfs_[id], integrate_vals);
+  return Areas(integrate_vals, utils * likelihoods).sum();
 }
 
-float AllPay::GetIntegrand(const std::function<float(float)>& cdf_func, int id,
-                           float bid) const {
-  float density = bid_pdf_funcs_[id](bid);
-  float prob_win = 1;
+
+float AllPay::GetRevenue(const Scatter& bids_in, int id) const {
+  ArrayXd integrate_vals =
+      ArrayXd::LinSpaced((bids_in.xs.size() - 1) * 3, bids_in.xs(0),
+                         bids_in.xs(bids_in.xs.size() - 1));
+  ArrayXd bids = Interpolate(bids_in, integrate_vals);
+  ArrayXd win_probs = ArrayXd::Ones(integrate_vals.size());
   for (int j = 0; j < n_players_; ++j) {
     if (j != id) {
-      prob_win *= bid_cdf_funcs_[j](bid);
+      win_probs *= Interpolate(bid_cdfs_[j], bids);
     }
   }
-  return (prob_win * values_[id] - bid) * density;
+  ArrayXd revenues = bids;
+  ArrayXd likelihoods = Interpolate(value_pdfs_[id], integrate_vals);
+  return Areas(integrate_vals, revenues * likelihoods).sum();
+}
+
+
+float AllPay::GetValue(const Scatter& bids_in, int id) const {
+  ArrayXd integrate_vals =
+      ArrayXd::LinSpaced((bids_in.xs.size() - 1) * 3, bids_in.xs(0),
+                         bids_in.xs(bids_in.xs.size() - 1));
+  ArrayXd bids = Interpolate(bids_in, integrate_vals);
+  ArrayXd win_probs = ArrayXd::Ones(integrate_vals.size());
+  for (int j = 0; j < n_players_; ++j) {
+    if (j != id) {
+      win_probs *= Interpolate(bid_cdfs_[j], bids);
+    }
+  }
+  ArrayXd realized_values = integrate_vals * win_probs;
+  ArrayXd likelihoods = Interpolate(value_pdfs_[id], integrate_vals);
+  return Areas(integrate_vals, realized_values * likelihoods).sum();
 }
 
 }  // namespace auctions

@@ -1,5 +1,5 @@
-#ifndef _GENERICGA_PHENOTYPE_STRATEGY_H_
-#define _GENERICGA_PHENOTYPE_STRATEGY_H_
+#ifndef GENERICGA_PHENOTYPE_STRATEGY_H_
+#define GENERICGA_PHENOTYPE_STRATEGY_H_
 
 namespace genericga {
 
@@ -10,4 +10,4 @@ struct PhenotypeStrategy {
 };
 
 }  // namespace genericga
-#endif  // _GENERICGA_PHENOTYPE_STRATEGY_H_
+#endif  // GENERICGA_PHENOTYPE_STRATEGY_H_

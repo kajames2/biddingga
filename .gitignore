@@ -1,6 +1,9 @@
 # Ignore the build and lib dirs
 build
-lib/*
+lib
+Debug
+bin
+Release
 
 # Ignore any executables
 bin/*

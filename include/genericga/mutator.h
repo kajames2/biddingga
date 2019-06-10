@@ -1,14 +1,14 @@
-#ifndef _GENERICGA_MUTATOR_H_
-#define _GENERICGA_MUTATOR_H_
+#ifndef GENERICGA_MUTATOR_H_
+#define GENERICGA_MUTATOR_H_
 
 namespace genericga {
 
 template <class Gen>
 class Mutator {
  public:
-  virtual void operator()(Gen &genotype);
+  virtual void operator()(Gen& genotype) = 0;
   virtual ~Mutator() {}
 };
 }  // namespace genericga
 
-#endif  // _GENERICGA_MUTATOR_H_
+#endif  // GENERICGA_MUTATOR_H_

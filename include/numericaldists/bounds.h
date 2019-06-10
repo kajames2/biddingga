@@ -1,5 +1,5 @@
-#ifndef _NUMERICALDISTS_BOUNDS_H_
-#define _NUMERICALDISTS_BOUNDS_H_
+#ifndef NUMERICALDISTS_BOUNDS_H_
+#define NUMERICALDISTS_BOUNDS_H_
 
 #include <cstddef>
 #include <ostream>
@@ -22,4 +22,4 @@ std::ostream& operator<<(std::ostream& os, const Bounds& r);
 
 }  // namespace numericaldists
 
-#endif  // _NUMERICALDISTS_BOUNDS_H_
+#endif  // NUMERICALDISTS_BOUNDS_H_

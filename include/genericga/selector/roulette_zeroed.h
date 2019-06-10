@@ -1,5 +1,5 @@
-#ifndef _GENERICGA_SELECTOR_ROULETTE_ZEROED_H_
-#define _GENERICGA_SELECTOR_ROULETTE_ZEROED_H_
+#ifndef GENERICGA_SELECTOR_ROULETTE_ZEROED_H_
+#define GENERICGA_SELECTOR_ROULETTE_ZEROED_H_
 
 #include <vector>
 
@@ -20,4 +20,4 @@ class RouletteZeroed : public Roulette {
 }  // namespace selector
 }  // namespace genericga
 
-#endif  // _GENERICGA_ROULETTE_ZEROED_SELECTOR_H_
+#endif  // GENERICGA_SELECTOR_ROULETTE_ZEROED_H_

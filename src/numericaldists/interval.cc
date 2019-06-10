@@ -7,11 +7,11 @@
 
 namespace numericaldists {
 
-bool InInterval(Interval interval, float val) {
+bool InInterval(Interval interval, double val) {
   return val >= interval.min && val <= interval.max;
 }
 
-float GetSpan(Interval interval) { return interval.max - interval.min; }
+double GetSpan(Interval interval) { return interval.max - interval.min; }
 
 bool operator==(const Interval& g1, const Interval& g2) {
   return g1.min == g2.min && g1.max == g2.max;

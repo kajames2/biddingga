@@ -1,51 +1,68 @@
-#ifndef _NUMERICALDISTS_DISTRIBUTION_OPS_H_
-#define _NUMERICALDISTS_DISTRIBUTION_OPS_H_
+#ifndef NUMERICALDISTS_DISTRIBUTION_OPS_H_
+#define NUMERICALDISTS_DISTRIBUTION_OPS_H_
 
-#include "numericaldists/bounds.h"
-#include "numericaldists/distribution.h"
 #include "numericaldists/interval.h"
-#include "numericaldists/piecewise_linear.h"
-#include "numericaldists/uneven_piecewise_linear.h"
+#include "numericaldists/scatter.h"
+#include "numericaldists/grid.h"
+
+#include <eigen3/Eigen/Core>
 
 namespace numericaldists {
 
-UnevenPiecewiseLinear ApproximateRandomVariableFunctionCDF(
-    const Distribution& dist, const std::function<float(float)>& func,
-    int n_samples = 1001);
+Eigen::ArrayXXd GetXMesh(const Eigen::ArrayXd& xs, int y_size);
+Eigen::ArrayXXd GetYMesh(const Eigen::ArrayXd& ys, int x_size);
+Eigen::ArrayXd CDF(const Eigen::ArrayXd& xs, const Eigen::ArrayXd& pdf);
+Eigen::ArrayXd PDF(const Eigen::ArrayXd& xs, const Eigen::ArrayXd& cdf);
+Eigen::ArrayXXd CDF2D(const Eigen::ArrayXd& xs, const Eigen::ArrayXd& ys,
+                      const Eigen::ArrayXXd& pdf);
+Eigen::ArrayXXd PDF2D(const Eigen::ArrayXd& xs, const Eigen::ArrayXd& ys,
+                      const Eigen::ArrayXXd& cdf);
+Eigen::ArrayXXd JointPDFIndependent(const Eigen::ArrayXd& x_pdf,
+                                    const Eigen::ArrayXd& y_pdf);
 
-PiecewiseLinear ApproximateExpectedValueFunction(
-    std::function<float(float)> pdf, std::function<float(float)> cdf,
-    Interval interval, int n_samples = 1001);
+Eigen::ArrayXd RandomVariableFunctionCDF(const Eigen::ArrayXd& xs,
+                                         const Eigen::ArrayXd& pdf,
+                                         const Eigen::ArrayXd& func_vals,
+                                         const Eigen::ArrayXd& new_xs);
+Eigen::ArrayXd ExpectedValueFunction(const Eigen::ArrayXd& xs,
+                                     const Eigen::ArrayXd& pdf,
+                                     const Eigen::ArrayXd& cdf);
+Eigen::ArrayXd ExpectedValueFunctionPDF(const Eigen::ArrayXd& xs,
+                                        const Eigen::ArrayXd& pdf);
+Eigen::ArrayXd ExpectedValueFunctionCDF(const Eigen::ArrayXd& xs,
+                                        const Eigen::ArrayXd& cdf);
+Eigen::ArrayXd ConditionalXPDF(const Eigen::ArrayXd& xs,
+                               const Eigen::ArrayXd& ys,
+                               const Eigen::ArrayXXd& pdf, float y);
+Eigen::ArrayXd ConditionalYPDF(const Eigen::ArrayXd& xs,
+                               const Eigen::ArrayXd& ys,
+                               const Eigen::ArrayXXd& pdf, float x);
+Eigen::ArrayXXd TwoRandomVariableFunctionCDF(const Eigen::ArrayXd& xs,
+                                             const Eigen::ArrayXd& ys,
+                                             const Eigen::ArrayXXd& joint_pdf,
+                                             const Eigen::ArrayXXd& f1,
+                                             const Eigen::ArrayXXd& f2,
+                                             const Eigen::ArrayXd& xs_f1,
+                                             const Eigen::ArrayXd& xs_f2);
+Eigen::ArrayXd RandomVariableFunctionCDF(const Eigen::ArrayXd& xs,
+                                         const Eigen::ArrayXd& ys,
+                                         const Eigen::ArrayXXd& joint_pdf,
+                                         const Eigen::ArrayXXd& zs,
+                                         const Eigen::ArrayXd& new_xs);
 
-PiecewiseLinear ApproximatePDFExpectedValueFunction(
-    std::function<float(float)> pdf, Interval interval, int n_samples = 1001);
+Eigen::ArrayXd ApplyConditional(const Eigen::ArrayXd& xs,
+                                const Eigen::ArrayXd& pdf,
+                                const std::function<bool(double)>& cond);
 
-PiecewiseLinear ApproximateCDFExpectedValueFunction(
-    std::function<float(float)> cdf, Interval interval, int n_samples = 1001);
-
-PiecewiseLinear ApproximateRandomVariableFunctionCDF(
-    const std::function<float(float, float)>& pdf,
-    const std::function<float(float, float)>& func, Interval x_int,
-    Interval y_int, Interval f_int, int n_samples = 1001);
-
-PiecewiseLinear ApproximateRandomVariableFunctionCDF(
-    const std::function<std::vector<std::vector<float>>(
-        std::vector<float>, std::vector<float>)>& pdf,
-    const std::function<std::vector<std::vector<float>>(
-        std::vector<float>, std::vector<float>)>& func,
-    Interval x_int, Interval y_int, Interval f_int, int n_samples = 1001);
-
-std::function<float(float, float)> MultivariatePDFDomainTransform(
-    const std::function<float(float, float)>& func,
-    const std::function<float(float, float)>& x_trans,
-    const std::function<float(float, float)>& y_trans,
-    const std::function<float(float, float)>& jacobian, Interval x_int,
-    Interval y_int);
-
-// PiecewiseLinear ApproximateRandomVariableFunctionCDF(
-//     const Distribution& dist, const std::function<float(float, float)>& func,
-//     int n_samples = 1001);
+Eigen::ArrayXXd ApplyConditional(const Eigen::ArrayXd& xs,
+                                 const Eigen::ArrayXd& ys,
+                                 const Eigen::ArrayXXd& pdf,
+                                 const std::function<bool(double, double)>& cond);
+Eigen::ArrayXd MarginalX(const Eigen::ArrayXd& xs, const Eigen::ArrayXd& ys,
+                         const Eigen::ArrayXXd& joint_pdf);
+Eigen::ArrayXd MarginalY(const Eigen::ArrayXd& xs, const Eigen::ArrayXd& ys,
+                         const Eigen::ArrayXXd& joint_pdf);
 
 }  // namespace numericaldists
 
-#endif  // _NUMERICALDISTS_DISTRIBUTION_OPS_H_
+#endif  // NUMERICALDISTS_DISTRIBUTION_OPS_H_

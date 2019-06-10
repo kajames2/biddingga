@@ -1,5 +1,5 @@
-#ifndef _GENERICGA_BINARY_SINGLE_POINT_CROSSOVER_H_
-#define _GENERICGA_BINARY_SINGLE_POINT_CROSSOVER_H_
+#ifndef GENERICGA_BINARY_SINGLE_POINT_CROSSOVER_H_
+#define GENERICGA_BINARY_SINGLE_POINT_CROSSOVER_H_
 
 #include <climits>
 #include <iostream>
@@ -23,10 +23,10 @@ class SinglePointCrossover : public Crossover<ByteArrayGenotype> {
   std::uniform_int_distribution<> dist;
 };
 
-void CrossoverGenes(ByteArrayGenotype& gene1, ByteArrayGenotype& gene2, int bit1,
-               int bit2);
+void CrossoverGenes(ByteArrayGenotype& gene1, ByteArrayGenotype& gene2,
+                    int bit1, int bit2);
 
 }  // namespace binary
 }  // namespace genericga
 
-#endif  // _GENERICGA_BINARY_SINGLE_POINT_CROSSOVER_H_
+#endif  // GENERICGA_BINARY_SINGLE_POINT_CROSSOVER_H_

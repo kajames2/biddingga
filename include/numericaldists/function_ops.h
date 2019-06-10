@@ -1,42 +1,92 @@
-#ifndef _NUMERICALDISTS_FUNCTION_OPS_H_
-#define _NUMERICALDISTS_FUNCTION_OPS_H_
+#ifndef NUMERICALDISTS_FUNCTION_OPS_H_
+#define NUMERICALDISTS_FUNCTION_OPS_H_
 
-#include "numericaldists/bilerper.h"
+#include "numericaldists/grid.h"
 #include "numericaldists/interval.h"
-#include "numericaldists/piecewise_linear.h"
-#include "numericaldists/uneven_piecewise_linear.h"
+#include "numericaldists/scatter.h"
+
+#include <eigen3/Eigen/Dense>
 
 namespace numericaldists {
 
-PiecewiseLinear ResampleFunction(const std::function<float(float)>& func,
-                                 Interval interval, int n_samples = 10001);
-PiecewiseLinear ResampleFunction(const UnevenPiecewiseLinear& func,
-                                 Interval interval, int n_samples = 10001);
+Eigen::ArrayXd OverlapMeanPool(const Eigen::ArrayXd& ys);
+Eigen::ArrayXXd OverlapMeanPool(const Eigen::ArrayXXd& zs);
+Eigen::ArrayXd Differences(const Eigen::ArrayXd& xs);
 
-UnevenPiecewiseLinear ApproximateInverse(
-    const std::function<float(float)>& func, Interval interval,
-    int n_samples = 1001);
+Eigen::ArrayXd Interpolate(const Eigen::ArrayXd& xs, const Eigen::ArrayXd& ys,
+                           const Eigen::ArrayXd& new_xs);
 
-PiecewiseLinear ApproximateDerivative(const std::function<float(float)>& func,
-                                      Interval interval, int n_samples = 1001);
+Eigen::ArrayXd Interpolate(const Scatter& points, const Eigen::ArrayXd& new_xs);
+void Interpolate(const Scatter& points, Scatter& out);
 
-std::vector<float> ApproximateAreas(std::function<float(float)> func,
-                                    const std::vector<float>& x_samples,
-                                    std::function<float(float)> integrand_func =
-                                        [](float x) { return 1; });
+std::vector<Eigen::ArrayXd> Interpolate(const Eigen::ArrayXd& xs,
+                                        const std::vector<Eigen::ArrayXd>& ys,
+                                        const Eigen::ArrayXd& new_xs);
 
-PiecewiseLinear ApproximateIntegralBelow(
-    std::function<float(float)> func, Interval interval, int n_samples = 1001,
-    std::function<float(float)> integrand_func = [](float x) { return 1; });
+Eigen::ArrayXd InterpolateUneven(const Eigen::ArrayXd& xs,
+                                 const Eigen::ArrayXd& ys,
+                                 const Eigen::ArrayXd& new_xs);
+Eigen::ArrayXd InterpolateUneven(const Scatter& points,
+                                 const Eigen::ArrayXd& new_xs);
+void InterpolateUneven(const Scatter& points, Scatter& out);
 
-PiecewiseLinear ApproximateIntegralAbove(
-    std::function<float(float)> func, Interval interval, int n_samples = 1001,
-    std::function<float(float)> integrand_func = [](float x) { return 1; });
+std::vector<Eigen::ArrayXd> InterpolateUneven(
+    const Eigen::ArrayXd& xs, const std::vector<Eigen::ArrayXd>& ys,
+    const Eigen::ArrayXd& new_xs);
 
-Bilerper ResampleFunction2D(const std::function<float(float, float)>& func,
-                            Interval x_int, Interval y_int,
-                            int n_samples = 1001);
+Eigen::ArrayXXd Interpolate2D(const Eigen::ArrayXd& xs,
+                              const Eigen::ArrayXd& ys,
+                              const Eigen::ArrayXXd& zs,
+                              const Eigen::ArrayXd& new_xs,
+                              const Eigen::ArrayXd& new_ys);
+Eigen::ArrayXXd Interpolate2DGrid(const Eigen::ArrayXd& xs,
+                              const Eigen::ArrayXd& ys,
+                              const Eigen::ArrayXXd& zs,
+                              const Eigen::ArrayXXd& new_xs,
+                              const Eigen::ArrayXXd& new_ys);
+Eigen::ArrayXXd Interpolate2D(const Grid& grid, const Eigen::ArrayXd& new_xs,
+                              const Eigen::ArrayXd& new_ys);
+void Interpolate2D(const Grid& grid, Grid& out);
+
+Eigen::ArrayXXd Interpolate2DUneven(const Eigen::ArrayXd& xs,
+                                    const Eigen::ArrayXd& ys,
+                                    const Eigen::ArrayXXd& zs,
+                                    const Eigen::ArrayXd& new_xs,
+                                    const Eigen::ArrayXd& new_ys);
+Eigen::ArrayXXd Interpolate2DUneven(const Grid& grid,
+                                    const Eigen::ArrayXd& new_xs,
+                                    const Eigen::ArrayXd& new_ys);
+void Interpolate2DUneven(const Grid& grid, Grid& out);
+
+std::vector<Eigen::ArrayXXd> Interpolate2D(
+    const Eigen::ArrayXd& xs, const Eigen::ArrayXd& ys,
+    const std::vector<Eigen::ArrayXXd>& zs, const Eigen::ArrayXd& new_xs,
+    const Eigen::ArrayXd& new_ys);
+
+std::vector<Eigen::ArrayXXd> Interpolate2DUneven(
+    const Eigen::ArrayXd& xs, const Eigen::ArrayXd& ys,
+    const std::vector<Eigen::ArrayXXd>& zs, const Eigen::ArrayXd& new_xs,
+    const Eigen::ArrayXd& new_ys);
+
+std::pair<Eigen::ArrayXd, Eigen::ArrayXd> InverseUneven(
+    const Eigen::ArrayXd& xs, const Eigen::ArrayXd& ys);
+std::pair<Eigen::ArrayXd, Eigen::ArrayXd> Inverse(const Eigen::ArrayXd& xs,
+                                                  const Eigen::ArrayXd& ys,
+                                                  Interval new_int);
+
+Eigen::ArrayXd Derivative(const Eigen::ArrayXd& xs, const Eigen::ArrayXd& ys);
+Eigen::ArrayXd Areas(const Eigen::ArrayXd& xs, const Eigen::ArrayXd& ys);
+Eigen::ArrayXXd Areas2D(const Eigen::ArrayXd& xs, const Eigen::ArrayXd& ys,
+                        const Eigen::ArrayXXd& zs);
+
+Eigen::ArrayXd IntegralBelow(const Eigen::ArrayXd& xs,
+                             const Eigen::ArrayXd& ys);
+Eigen::ArrayXXd IntegralBelow2D(const Eigen::ArrayXd& xs,
+                                const Eigen::ArrayXd& ys,
+                                const Eigen::ArrayXXd& zs);
+Eigen::ArrayXd IntegralAbove(const Eigen::ArrayXd& xs,
+                             const Eigen::ArrayXd& ys);
 
 }  // namespace numericaldists
 
-#endif  // _NUMERICALDISTS_BID_FUNCTION_OPS_H_
+#endif  // NUMERICALDISTS_BID_FUNCTION_OPS_H_

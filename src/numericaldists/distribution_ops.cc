@@ -1,216 +1,241 @@
 #include <algorithm>
 #include <functional>
+#include <iostream>
 #include <numeric>
 #include <vector>
 
-#include "numericaldists/bilerper.h"
 #include "numericaldists/distribution.h"
 #include "numericaldists/function_ops.h"
-#include "numericaldists/line_ops.h"
-#include "numericaldists/piecewise_linear.h"
-#include "numericaldists/uneven_piecewise_linear.h"
+
+#include <eigen3/Eigen/Core>
+
+using namespace Eigen;
 
 namespace numericaldists {
 
-using Mesh = std::vector<float>;
-
-UnevenPiecewiseLinear ApproximateRandomVariableFunctionCDF(
-    const Distribution& dist, const std::function<float(float)>& func,
-    int n_samples) {
-  auto prob_samples = GetMesh(Interval{0, 1}, n_samples);
-  std::vector<float> quant_samples(n_samples);
-  quant_samples.front() = lower(dist);
-  quant_samples.back() = upper(dist);
-  std::transform(prob_samples.begin() + 1, prob_samples.end() - 1,
-                 quant_samples.begin() + 1,
-                 [&dist](float x) { return quantile(dist, x); });
-  std::vector<float> f_samples(n_samples);
-  std::transform(quant_samples.begin(), quant_samples.end(), f_samples.begin(),
-                 func);
-  std::sort(f_samples.begin(), f_samples.end());
-  return UnevenPiecewiseLinear(f_samples, prob_samples);
+ArrayXXd GetXMesh(const ArrayXd& xs, int y_size) {
+  return xs.matrix().transpose().replicate(y_size, 1);
 }
 
-PiecewiseLinear ApproximateExpectedValueFunction(
-    std::function<float(float)> pdf, std::function<float(float)> cdf,
-    Interval interval, int n_samples) {
-  auto x_samples = GetMesh(interval, n_samples);
-  auto area_samples =
-      ApproximateAreas(pdf, x_samples, [](float x) { return x; });
-  std::partial_sum(area_samples.begin(), area_samples.end(),
-                   area_samples.begin());
-  area_samples[0] = x_samples[0];
-  for (int i = 1; i < n_samples; ++i) {
-    float prob_below = cdf(x_samples[i]);
-    if (prob_below == 0) {
-      area_samples[i] = -1;
-    } else {
-      area_samples[i] =
-          std::min(area_samples[i] / cdf(x_samples[i]), x_samples[i]);
+ArrayXXd GetYMesh(const ArrayXd& ys, int x_size) {
+  return ys.matrix().replicate(1, x_size);
+}
+
+ArrayXd CDF(const ArrayXd& xs, const ArrayXd& pdf) {
+  ArrayXd cdf = IntegralBelow(xs, pdf);
+  cdf /= cdf(xs.size() - 1);
+  return cdf;
+}
+
+ArrayXd PDF(const ArrayXd& xs, const ArrayXd& cdf) {
+  return Derivative(xs, cdf);
+}
+
+ArrayXXd CDF2D(const ArrayXd& xs, const ArrayXd& ys, const ArrayXXd& pdf) {
+  ArrayXXd cdf = IntegralBelow2D(xs, ys, pdf);
+  cdf /= cdf(ys.size() - 1, xs.size() - 1);
+  return cdf;
+}
+
+// This has pretty bad precision...
+ArrayXXd PDF2D(const ArrayXd& xs, const ArrayXd& ys, const ArrayXXd& cdf) {
+  ArrayXXd areas = ArrayXXd::Ones(cdf.rows(), cdf.cols());
+  areas = Areas2D(xs, ys, areas);
+  ArrayXXd pdf = cdf;
+  for (int i = cdf.cols() - 1; i > 0; --i) {
+    pdf.col(i) -= pdf.col(i - 1);
+  }
+  for (int i = cdf.rows() - 1; i > 0; --i) {
+    pdf.row(i) -= pdf.row(i - 1);
+  }
+  pdf.bottomRightCorner(pdf.rows() - 1, pdf.cols() - 1) /=
+      areas.bottomRightCorner(areas.rows() - 1, areas.cols() - 1);
+  ArrayXXd centered_pdf = pdf.bottomRightCorner(pdf.rows() - 1, pdf.cols() - 1);
+  ArrayXd centered_xs = OverlapMeanPool(xs);
+  ArrayXd centered_ys = OverlapMeanPool(ys);
+  pdf = Interpolate2DUneven(centered_xs, centered_ys, centered_pdf, xs, ys);
+  pdf /= (pdf * areas).sum();
+  return pdf;
+}
+
+// Esimates the CDF for a function of a random variable.
+// new_xs must be linearly spaced.
+ArrayXd RandomVariableFunctionCDF(const ArrayXd& xs, const ArrayXd& pdf,
+                                  const ArrayXd& func_vals,
+                                  const ArrayXd& new_xs) {
+  int size = xs.size();
+  int new_size = new_xs.size();
+  ArrayXd probs = Areas(xs, pdf).tail(size - 1);
+  ArrayXd f_vals = OverlapMeanPool(func_vals);
+  double spacing = (new_xs(new_xs.size() - 1) - new_xs(0)) / (new_size - 1);
+  ArrayXi inds = ((f_vals - new_xs(0)) / spacing)
+                     .max(0)
+                     .min(new_xs.size() - 1)
+                     .ceil()
+                     .cast<int>();
+  ArrayXd f_pdf = ArrayXd::Zero(new_size);
+  for (int i = 0; i < size - 1; ++i) {
+    f_pdf[inds(i)] += probs(i);
+  }
+  std::partial_sum(f_pdf.data(), f_pdf.data() + new_size, f_pdf.data());
+  f_pdf /= f_pdf(f_pdf.size() - 1);
+  return f_pdf;
+}
+
+ArrayXd ExpectedValueFunction(const ArrayXd& xs, const ArrayXd& pdf,
+                              const ArrayXd& cdf) {
+  ArrayXd integrals = IntegralBelow(xs, pdf * xs);
+  integrals /= cdf;
+  integrals = integrals.min(xs).max(xs(0));
+  return integrals;
+}
+
+ArrayXd ExpectedValueFunctionPDF(const ArrayXd& xs, const ArrayXd& pdf) {
+  return ExpectedValueFunction(xs, pdf, CDF(xs, pdf));
+}
+
+ArrayXd ExpectedValueFunctionCDF(const ArrayXd& xs, const ArrayXd& cdf) {
+  return ExpectedValueFunction(xs, PDF(xs, cdf), cdf);
+}
+
+ArrayXd ConditionalXPDF(const ArrayXd& xs, const ArrayXd& ys,
+                        const ArrayXXd& pdf, float y) {
+  ArrayXd y_arr(1);
+  y_arr << y;
+  ArrayXd pdf_slice = Interpolate2D(xs, ys, pdf, xs, y_arr);
+  pdf_slice /= pdf_slice.sum();
+  return pdf_slice;
+}
+
+ArrayXd ConditionalYPDF(const ArrayXd& xs, const ArrayXd& ys,
+                        const ArrayXXd& pdf, float x) {
+  ArrayXd x_arr(1);
+  x_arr << x;
+  ArrayXd pdf_slice = Interpolate2D(xs, ys, pdf, x_arr, ys);
+  pdf_slice /= pdf_slice.sum();
+  return pdf_slice;
+}
+
+ArrayXXd JointPDFIndependent(const ArrayXd& x_pdf, const ArrayXd& y_pdf) {
+  return (y_pdf.matrix() * x_pdf.matrix().transpose()).array();
+}
+
+// Assume xs/ys/xs_f1/ys_f1 are linearly spaced
+ArrayXXd TwoRandomVariableFunctionCDF(const ArrayXd& xs, const ArrayXd& ys,
+                                      const ArrayXXd& joint_pdf,
+                                      const ArrayXXd& f1, const ArrayXXd& f2,
+                                      const ArrayXd& xs_f1,
+                                      const ArrayXd& xs_f2) {
+  assert(joint_pdf.size() == f1.size() && joint_pdf.size() == f2.size());
+
+  ArrayXXd probs = Areas2D(xs, ys, joint_pdf)
+                       .bottomRightCorner(ys.size() - 1, xs.size() - 1);
+  ArrayXXd f1_vals = OverlapMeanPool(f1);
+  double spacing_f1 = (xs_f1(xs_f1.size() - 1) - xs_f1(0)) / (xs_f1.size() - 1);
+  ArrayXXi inds_f1 = ((f1_vals - xs_f1(0)) / spacing_f1)
+                         .max(0)
+                         .min(xs_f1.size() - 1)
+                         .ceil()
+                         .cast<int>();
+  ArrayXXd f2_vals = OverlapMeanPool(f2);
+  double spacing_f2 = (xs_f2(xs_f2.size() - 1) - xs_f2(0)) / (xs_f2.size() - 1);
+  ArrayXXi inds_f2 = ((f2_vals - xs_f2(0)) / spacing_f2)
+                         .max(0)
+                         .min(xs_f2.size() - 1)
+                         .ceil()
+                         .cast<int>();
+  ArrayXXd fs_cdf = ArrayXXd::Zero(xs_f2.size(), xs_f1.size());
+
+  for (int row = 0; row < probs.rows(); ++row) {
+    for (int col = 0; col < probs.cols(); ++col) {
+      fs_cdf(inds_f2(row, col), inds_f1(row, col)) += probs(row, col);
     }
   }
-  return PiecewiseLinear(area_samples, interval);
-}
-
-PiecewiseLinear ApproximatePDFExpectedValueFunction(
-    std::function<float(float)> pdf, Interval interval, int n_samples) {
-  auto cdf = ApproximateIntegralBelow(pdf, interval, n_samples);
-  return ApproximateExpectedValueFunction(pdf, cdf, interval, n_samples);
-}
-
-PiecewiseLinear ApproximateCDFExpectedValueFunction(
-    std::function<float(float)> cdf, Interval interval, int n_samples) {
-  auto pdf = ApproximateDerivative(cdf, interval, n_samples);
-  return ApproximateExpectedValueFunction(pdf, cdf, interval, n_samples);
-}
-
-PiecewiseLinear ApproximateConditionalXPDF(
-    const std::function<float(float, float)>& pdf, Interval x_int, float y,
-    int n_samples) {
-  auto x_mesh = GetMesh(x_int, n_samples);
-  std::vector<float> cond(n_samples);
-  std::transform(x_mesh.begin(), x_mesh.end(), cond.begin(),
-                 [y, &pdf](float x) { return pdf(x, y); });
-  auto total = std::accumulate(cond.begin(), cond.end(), 0);
-  for (auto& c : cond) c /= total;
-  return PiecewiseLinear(cond, x_int);
-}
-
-PiecewiseLinear ApproximateConditionalYPDF(
-    const std::function<float(float, float)>& pdf, Interval y_int, float x,
-    int n_samples) {
-  auto y_mesh = GetMesh(y_int, n_samples);
-  std::vector<float> cond(n_samples, 0);
-  std::transform(y_mesh.begin(), y_mesh.end(), cond.begin(),
-                 [x, &pdf](float y) { return pdf(x, y); });
-  auto total = std::accumulate(cond.begin(), cond.end(), 0);
-  for (auto& c : cond) c /= total;
-  return PiecewiseLinear(cond, y_int);
-}
-
-PiecewiseLinear ApproximateRandomVariableFunctionCDF(
-    const std::function<float(float, float)>& pdf,
-    const std::function<float(float, float)>& func, Interval x_int,
-    Interval y_int, Interval f_int, int n_samples) {
-  float x_size = GetSpan(x_int) / n_samples;
-  float y_size = GetSpan(y_int) / n_samples;
-  float section_area = x_size * y_size;
-  auto x_mesh = GetMesh(
-      Interval{x_int.min + x_size / 2, x_int.max - x_size / 2}, n_samples);
-  auto y_mesh = GetMesh(
-      Interval{y_int.min + y_size / 2, y_int.max - y_size / 2}, n_samples);
-  std::vector<float> f_mesh(n_samples, 0);
-  float f_bin_size = GetSpan(f_int) / n_samples;
-  for (auto x : x_mesh) {
-    for (auto y : y_mesh) {
-      float f_val = func(x, y);
-      int bin = static_cast<int>((f_val - f_int.min) / f_bin_size);
-      assert(bin >= 0 && bin < n_samples);
-      f_mesh[bin] += pdf(x, y) * section_area;
-    }
+  for (int row = 1; row < fs_cdf.rows(); ++row) {
+    fs_cdf.row(row) += fs_cdf.row(row - 1);
   }
-  std::partial_sum(f_mesh.begin(), f_mesh.end(), f_mesh.begin());
-  return PiecewiseLinear(f_mesh, f_int);
-}
-
-PiecewiseLinear ApproximateRandomVariableFunctionCDF(
-    const std::function<std::vector<Mesh>(Mesh, Mesh)>& pdf,
-    const std::function<std::vector<Mesh>(Mesh, Mesh)>& func, Interval x_int,
-    Interval y_int, Interval f_int, int n_samples) {
-  float x_size = GetSpan(x_int) / n_samples;
-  float y_size = GetSpan(y_int) / n_samples;
-  float section_area = x_size * y_size;
-  auto x_mesh = GetMesh(
-      Interval{x_int.min + x_size / 2, x_int.max - x_size / 2}, n_samples);
-  auto y_mesh = GetMesh(
-      Interval{y_int.min + y_size / 2, y_int.max - y_size / 2}, n_samples);
-  std::vector<float> f_mesh(n_samples, 0);
-  float f_bin_size = GetSpan(f_int) / n_samples;
-  auto f_vals = func(x_mesh, y_mesh);
-  auto pdf_vals = pdf(x_mesh, y_mesh);
-
-  for (int i = 0; i < y_mesh.size(); ++i) {
-    for (int j = 0; j < x_mesh.size(); ++j) {
-      int bin = static_cast<int>((f_vals[i][j] - f_int.min) / f_bin_size);
-      assert(bin >= 0 && bin < n_samples);
-      f_mesh[bin] += pdf_vals[i][j] * section_area;
-    }
+  for (int col = 1; col < fs_cdf.cols(); ++col) {
+    fs_cdf.col(col) += fs_cdf.col(col - 1);
   }
-  std::partial_sum(f_mesh.begin(), f_mesh.end(), f_mesh.begin());
-  return PiecewiseLinear(f_mesh, f_int);
+  return fs_cdf;
 }
 
-// Must be monotonic transformations
-std::function<float(float, float)> MultivariatePDFDomainTransform(
-    const std::function<float(float, float)>& func,
-    const std::function<float(float, float)>& x_trans,
-    const std::function<float(float, float)>& y_trans,
-    const std::function<float(float, float)>& jacobian, Interval x_int,
-    Interval y_int) {
-  return [func, x_trans, y_trans, jacobian, x_int, y_int](float u,
-                                                          float v) -> float {
-    float x = x_trans(u, v);
-    float y = y_trans(u, v);
-    if (!InInterval(x_int, x) || !InInterval(y_int, y)) {
-      return 0;
-    }
-    return func(x_trans(u, v), y_trans(u, v)) * jacobian(u, v);
-  };
-}
+ArrayXd RandomVariableFunctionCDF(const ArrayXd& xs, const ArrayXd& ys,
+                                  const ArrayXXd& joint_pdf, const ArrayXXd& zs,
+                                  const ArrayXd& new_xs) {
+  int x_size = xs.size();
+  int y_size = ys.size();
+  int new_size = new_xs.size();
+  ArrayXXd probs = Areas2D(xs, ys, joint_pdf)
+                       .bottomRightCorner(ys.size() - 1, xs.size() - 1);
+  ArrayXXd z_vals = OverlapMeanPool(zs);
+  double z_spacing =
+      (new_xs(new_xs.size() - 1) - new_xs(0)) / (new_xs.size() - 1);
+  ArrayXXi inds = ((z_vals - new_xs(0)) / z_spacing)
+                      .max(0)
+                      .min(new_xs.size() - 1)
+                      .ceil()
+                      .cast<int>();
 
-Bilerper ApplyConditional(Bilerper pdf,
-                          const std::function<bool(float, float)>& conditional,
-                          Interval x_int, Interval y_int, int n_samples) {
-  float x_size = GetSpan(x_int) / n_samples;
-  float y_size = GetSpan(y_int) / n_samples;
-  float section_area = x_size * y_size;
-  auto x_mesh = GetMesh(
-      Interval{x_int.min + x_size / 2, x_int.max - x_size / 2}, n_samples);
-  auto y_mesh = GetMesh(
-      Interval{y_int.min + y_size / 2, y_int.max - y_size / 2}, n_samples);
-
-  auto pdf_vals = pdf(x_mesh, y_mesh);
-  float loss_prob;
-  for (int i = 0; i < y_mesh.size(); ++i) {
-    for (int j = 0; j < x_mesh.size(); ++j) {
-      if (!conditional(x_mesh[j], y_mesh[i])) {
-        loss_prob += pdf_vals[i][j] * section_area;
-        pdf_vals[i][j] = 0;
-      }
-    }
-  }
-  for (int i = 0; i < y_mesh.size(); ++i) {
-    for (int j = 0; j < x_mesh.size(); ++j) {
-      pdf_vals[i][j] /= (1 - loss_prob);
+  ArrayXd f_pdf = ArrayXd::Zero(new_size);
+  for (int row = 0; row < inds.rows() - 1; ++row) {
+    for (int col = 0; col < inds.cols() - 1; ++col) {
+      f_pdf[inds(row, col)] += probs(row, col);
     }
   }
 
-  return Bilerper(x_int, y_int, pdf_vals);
+  std::partial_sum(f_pdf.data(), f_pdf.data() + new_size, f_pdf.data());
+  f_pdf /= f_pdf(f_pdf.size() - 1);
+  return f_pdf;
 }
 
-PiecewiseLinear Marginal(Bilerper pdf, Interval x_int, Interval y_int,
-                            int n_samples) {
-  float x_size = GetSpan(x_int) / n_samples;
-  float y_size = GetSpan(y_int) / n_samples;
-  float section_area = x_size * y_size;
-  auto x_mesh = GetMesh(
-      Interval{x_int.min + x_size / 2, x_int.max - x_size / 2}, n_samples);
-  auto y_mesh = GetMesh(
-      Interval{y_int.min + y_size / 2, y_int.max - y_size / 2}, n_samples);
+// Assumes independence between pdf1 and pdf2
+// ArrayXd RandomVariableBinaryOperationPDF(
+//     const ArrayXd& xs, const ArrayXd& pdf1, const ArrayXd& pdf2,
+//     const std::function<double(double, double)>& f, const ArrayXd& new_xs) {
+//   double spacing = (new_xs(new_xs.size() - 1) - new_xs(0)) / new_xs.size();
+//   ArrayXXd joint_pdf = JointPDFIndependent(pdf1, pdf2);
+//   ArrayXXd x_mesh = GetXMesh(xs, xs.size());
+//   ArrayXXd y_mesh = GetYMesh(xs, xs.size());
+//   ArrayXXd f_mesh = x_mesh.binaryExpr(y_mesh, f);
+//   //  f_mesh * joint_pdf
+// }
 
-  auto pdf_vals = pdf(x_mesh, y_mesh);
-  std::vector<float> marg_probs(x_mesh.size());
-  for (int i = 0; i < y_mesh.size(); ++i) {
-    for (int j = 0; j < x_mesh.size(); ++j) {
-      marg_probs[i] += pdf_vals[i][j] * section_area;
-    }
-  }
-  std::reverse(marg_probs.begin(), marg_probs.end());
-  float total_prob = std::accumulate(marg_probs.begin(), marg_probs.end(), 0);
-  for (float& prob : marg_probs) {
-    prob /= total_prob;
-  }
-  return PiecewiseLinear(marg_probs, y_int);
+ArrayXd ApplyConditional(const ArrayXd& xs, const ArrayXd& pdf,
+                         const std::function<bool(double)>& cond) {
+  ArrayXd pdf_cond =
+      xs.unaryExpr([cond](double x) { return cond(x) ? 1.0 : 0.0; }) * pdf;
+  pdf_cond /= Areas(xs, pdf_cond).sum();
+  return pdf_cond;
+}
+
+ArrayXXd ApplyConditional(const ArrayXd& xs, const ArrayXd& ys,
+                          const ArrayXXd& pdf,
+                          const std::function<bool(double, double)>& cond) {
+  MatrixXd x_mat = GetXMesh(xs, ys.size());
+  MatrixXd y_mat = GetYMesh(ys, xs.size());
+  ArrayXXd pdf_cond = x_mat.binaryExpr(y_mat,
+                                      [cond](double x, double y) {
+                                        return cond(x, y) ? 0.0 : 1.0;
+                                      }).array() * pdf;
+  pdf_cond /= Areas2D(xs, ys, pdf_cond).sum();
+  return pdf_cond;
+}
+
+// Requires xs equally spaced
+ArrayXd MarginalX(const ArrayXd& xs, const ArrayXd& ys,
+                  const ArrayXXd& joint_pdf) {
+  ArrayXd x_likes = joint_pdf.colwise().sum();
+  x_likes /= Areas(xs, x_likes).sum();
+  return x_likes;
+}
+
+// Requires ys equally spaced
+ArrayXd MarginalY(const ArrayXd& xs, const ArrayXd& ys,
+                  const ArrayXXd& joint_pdf) {
+  ArrayXd y_likes = joint_pdf.rowwise().sum();
+  y_likes /= Areas(ys, y_likes).sum();
+  return y_likes;
 }
 
 }  // namespace numericaldists

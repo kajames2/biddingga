@@ -1,5 +1,5 @@
-#ifndef _NUMERICALDISTS_COMBINATION_GENERATION_H_
-#define _NUMERICALDISTS_COMBINATION_GENERATION_H_
+#ifndef NUMERICALDISTS_COMBINATION_GENERATION_H_
+#define NUMERICALDISTS_COMBINATION_GENERATION_H_
 
 namespace numericaldists {
 
@@ -8,4 +8,4 @@ unsigned int GetNextCanonicalCombination(unsigned int v);
 
 }  // namespace numericaldists
 
-#endif  // _NUMERICALDISTS_COMBINATION_GENERATION_H_
+#endif  // NUMERICALDISTS_COMBINATION_GENERATION_H_

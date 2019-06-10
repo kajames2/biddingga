@@ -12,135 +12,151 @@
 
 using namespace boost::math;
 using namespace numericaldists;
+using namespace Eigen;
 
 namespace auctions {
 
 CommonValueSignal::CommonValueSignal(std::vector<int> n_draws, float epsilon,
-                                     Interval discount_int)
+                                     Interval rel_bid_int,
+                                     int n_internal_samples,
+                                     int mstar_integration_samples)
     : n_players_(n_draws.size()),
       pre_calculated_(false),
       n_draws_(n_draws),
-      discount_funcs_(n_draws.size()),
-      one_draw_discounts_(n_draws.size()),
+      rel_bid_funcs_(n_draws.size()),
+      one_draw_rel_bids_(n_draws.size()),
       others_bids_cdfs_(n_draws.size()),
       value_dists_(n_draws.size()),
-      one_draw_value_dists_(n_draws.size(), uniform_distribution<>(-epsilon, epsilon)),
-      signal_int_(Interval{-epsilon, epsilon}),
-      range_int_(Interval{0, 2 * epsilon}),
-      bid_int_(
-          Interval{-epsilon - discount_int.max, epsilon - discount_int.min}) {
+      n_internal_samples_(n_internal_samples),
+      mstar_integration_samples_(mstar_integration_samples) {
+  utility_funcs_ = std::vector<std::function<double(double)>>(
+      n_players_, [](double val) { return val; });
+  prob_weight_funcs_ = std::vector<std::function<double(double)>>(
+      n_players_, [](double prob) { return prob; });
+  internal_bids_ =
+      ArrayXd::LinSpaced(n_internal_samples_, -epsilon + rel_bid_int.min,
+                         epsilon + rel_bid_int.max);
+  internal_signals_ =
+      ArrayXd::LinSpaced(n_internal_samples_, -epsilon, epsilon);
+  internal_mstars_ = ArrayXd::LinSpaced(n_internal_samples_, -epsilon, epsilon);
+  internal_precs_ = ArrayXd::LinSpaced(n_internal_samples_, 0, 2 * epsilon);
+  one_draw_pdf_ = ArrayXd::Ones(n_internal_samples, 1) / (2 * epsilon);
+  ArrayXd signal_cdf = ArrayXd::LinSpaced(n_internal_samples_, 0, 1);
+  ArrayXXd signalXMesh = GetXMesh(internal_signals_, internal_signals_.size());
+  ArrayXXd signalYMesh = GetYMesh(internal_signals_, internal_signals_.size());
+  ArrayXXd mstarMesh = (signalXMesh + signalYMesh) / 2;
+  ArrayXXd precMesh = (signalYMesh - signalXMesh).abs();
   for (int i = 0; i < n_players_; ++i) {
     int draw = n_draws_[i];
     if (draw > 1) {
-      auto joint = ApproximateLowestHighestJointOrderStatisticPDF(
-          one_draw_value_dists_[i], draw);
-      auto mstar_range = MultivariatePDFDomainTransform(
-          joint,
-          [epsilon](float mstar, float range) {
-            return -epsilon + mstar + 0.5 * range;
-          },
-          [epsilon](float mstar, float range) {
-            return epsilon + mstar - 0.5 * range;
-          },
-          [](float mstar, float range) { return 1; }, signal_int_, signal_int_);
-      auto mstar_range_resampled =
-          ResampleFunction2D(mstar_range, signal_int_, range_int_);
-      value_dists_[i] = std::move(mstar_range_resampled);
+      ArrayXXd joint = LowestHighestJointOrderStatisticPDF(internal_signals_,
+                                                           signal_cdf, draw);
+      ArrayXXd joint_m_r_cdf = TwoRandomVariableFunctionCDF(
+          internal_signals_, internal_signals_, joint, mstarMesh, precMesh,
+          internal_mstars_, internal_precs_);
+      value_dists_[i] = PDF2D(internal_mstars_, internal_precs_, joint_m_r_cdf);
     }
   }
 }
 
-void CommonValueSignal::AcceptStrategy(
-    numericaldists::PiecewiseLinear discount_func, int id) {
-  discount_funcs_[id] = std::move(discount_func);
+void CommonValueSignal::AcceptStrategy(Scatter rel_bid_func, int id) {
+  rel_bid_funcs_[id] = std::move(rel_bid_func);
   pre_calculated_ = false;
 }
 
-void CommonValueSignal::AcceptStrategy(float discount_value, int id) {
-  one_draw_discounts_[id] = discount_value;
+void CommonValueSignal::AcceptStrategy(float rel_bid_value, int id) {
+  one_draw_rel_bids_[id] = rel_bid_value;
   pre_calculated_ = false;
 }
 
-float CommonValueSignal::GetFitness(
-    const std::function<float(float)>& discount_func, int id) const {
+// rel_bid_func -- x-values are different precisions, y-values are the bid
+// relative to mstar given the precision
+float CommonValueSignal::GetFitness(const Scatter& rel_bid_func, int id) const {
   if (!pre_calculated_) {
     Precalculate();
   }
-  
-  float exp_profit = 0;
-  exp_profit = quadrature::gauss_kronrod<float, 61>::integrate(
-      [this, &discount_func, id](float range) {
-        return GetIntegrand(discount_func, id, range);
-      },
-      range_int_.min, range_int_.max, 0, 0);
-  return exp_profit;
+
+  ArrayXd integrate_mstars =
+      ArrayXd::LinSpaced(mstar_integration_samples_, internal_mstars_(0),
+                         internal_mstars_(internal_mstars_.size() - 1));
+  ArrayXd integrate_precs = ArrayXd::LinSpaced((rel_bid_func.xs.size() - 1) * 3,
+                                               rel_bid_func.xs.minCoeff(),
+                                               rel_bid_func.xs.maxCoeff());
+
+  ArrayXXd mstar_mesh = GetXMesh(integrate_mstars, integrate_precs.size());
+  ArrayXXd prec_mesh = GetYMesh(integrate_precs, integrate_mstars.size());
+  ArrayXd rel_bids = Interpolate(rel_bid_func, integrate_precs);
+  ArrayXXd rel_bids_mesh = GetYMesh(rel_bids, integrate_mstars.size());
+  ArrayXXd bids = mstar_mesh + rel_bids_mesh;
+  ArrayXXd win_probs(rel_bids_mesh.rows(), rel_bids_mesh.cols());
+  for (int i = 0; i < rel_bids_mesh.rows(); ++i) {
+    win_probs.row(i) =
+        Interpolate(internal_bids_, others_bids_cdfs_[id], bids.row(i));
+  }
+  // True value is the reference point, so it is 0.
+  ArrayXXd profits = 0 - bids;
+  ArrayXXd utils =
+      profits.unaryExpr(utility_funcs_[id]) *
+          win_probs.unaryExpr(prob_weight_funcs_[id]) +
+      utility_funcs_[id](0) * (1 - win_probs).unaryExpr(prob_weight_funcs_[id]);
+  ArrayXXd likelihoods =
+      Interpolate2D(internal_mstars_, internal_precs_, value_dists_[id],
+                    integrate_mstars, integrate_precs);
+  return Areas2D(integrate_mstars, integrate_precs, utils * likelihoods).sum();
 }
 
-float CommonValueSignal::GetFitness(const float discount, int id) const {
+float CommonValueSignal::GetFitness(const float rel_bid, int id) const {
   if (!pre_calculated_) {
     Precalculate();
   }
-  
-  float exp_profit = 0;
-  exp_profit = quadrature::gauss_kronrod<float, 61>::integrate(
-      [this, discount, id](float m_star) {
-        float bid = m_star - discount;
-        return (0 - bid) * others_bids_cdfs_[id](bid) *
-               pdf(one_draw_value_dists_[id], m_star);
-      },
-      signal_int_.min, signal_int_.max, 0, 0);
-  return exp_profit;
-}
 
-double CommonValueSignal::GetIntegrand(
-    const std::function<float(float)>& discount_func, int id,
-    float range) const {
-  return quadrature::gauss_kronrod<float, 61>::integrate(
-      [this, range, &discount_func, id](float m_star) {
-        float bid = m_star - discount_func(range);
-        return (0 - bid) * others_bids_cdfs_[id](bid) *
-               value_dists_[id](m_star, range);
-      },
-      signal_int_.min, signal_int_.max, 0, 0);
+  ArrayXd integrate_signals =
+      ArrayXd::LinSpaced(mstar_integration_samples_, internal_signals_(0),
+                         internal_signals_(internal_signals_.size() - 1));
+  ArrayXd bids = integrate_signals + rel_bid;
+  ArrayXd win_probs = Interpolate(internal_bids_, others_bids_cdfs_[id], bids);
+  ArrayXd profits = 0 - bids;
+  ArrayXd utils =
+      profits.unaryExpr(utility_funcs_[id]) *
+          win_probs.unaryExpr(prob_weight_funcs_[id]) +
+      utility_funcs_[id](0) * (1 - win_probs).unaryExpr(prob_weight_funcs_[id]);
+  ArrayXd likelihoods =
+      Interpolate(internal_signals_, one_draw_pdf_, integrate_signals);
+  return Areas(integrate_signals, utils * likelihoods).sum();
 }
 
 void CommonValueSignal::Precalculate() const {
-  std::vector<std::function<float(float)>> cdfs;
+  std::vector<ArrayXd> cdfs(n_players_);
+
+  #pragma omp parallel for
   for (int i = 0; i < n_players_; ++i) {
     if (n_draws_[i] > 1) {
-      std::function<float(float)> cdf = ApproximateRandomVariableFunctionCDF(
-          value_dists_[i],
-          [this, i](std::vector<float> m_stars, std::vector<float> ranges) {
-            std::vector<std::vector<float>> out;
-            auto range_discounts = discount_funcs_[i](ranges);
-            for (float discount : range_discounts) {
-              std::vector<float> slice(m_stars.size());
-              std::transform(
-                  m_stars.begin(), m_stars.end(), slice.begin(),
-                  [discount](float m_star) { return m_star - discount; });
-              out.push_back(std::move(slice));
-            }
-            return out;
-          },
-          signal_int_, range_int_, bid_int_);
-      cdfs.push_back(ResampleFunction(cdf, bid_int_));
+      ArrayXd internal_rel_bids =
+          Interpolate(rel_bid_funcs_[i], internal_precs_);
+      ArrayXXd rel_bid_mesh =
+          GetYMesh(internal_rel_bids, internal_mstars_.size());
+      ArrayXXd mstar_mesh =
+          GetXMesh(internal_mstars_, internal_rel_bids.size());
+      ArrayXXd bid_mesh = mstar_mesh + rel_bid_mesh;
+      cdfs[i] =
+          RandomVariableFunctionCDF(internal_mstars_, internal_precs_,
+                                    value_dists_[i], bid_mesh, internal_bids_);
     } else {
-      std::function<float(float)> cdf = ApproximateRandomVariableFunctionCDF(
-          one_draw_value_dists_[i],
-          [this, i](float m_star) { return m_star - one_draw_discounts_[i]; });
-      cdfs.push_back(ResampleFunction(cdf, bid_int_));
+      ArrayXd bids = internal_mstars_ + one_draw_rel_bids_[i];
+      cdfs[i] = RandomVariableFunctionCDF(internal_mstars_, one_draw_pdf_, bids,
+                                          internal_bids_);
     }
   }
 
   for (int i = 0; i < n_players_; ++i) {
-    std::vector<std::function<float(float)>> other_cdfs;
+    std::vector<ArrayXd> other_cdfs;
     for (int j = 0; j < n_players_; ++j) {
       if (i != j) {
         other_cdfs.emplace_back(cdfs[j]);
       }
     }
-    others_bids_cdfs_[i] = ApproximateKthLowestOrderStatisticCDF(
-        other_cdfs, bid_int_, n_players_ - 1);
+    others_bids_cdfs_[i] =
+        KthLowestOrderStatisticCDF(internal_bids_, other_cdfs, n_players_ - 1);
   }
   pre_calculated_ = true;
 }

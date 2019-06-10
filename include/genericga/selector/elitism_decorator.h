@@ -1,5 +1,5 @@
-#ifndef _GENERICGA_SELECTOR_ELITISM_DECORATOR_H_
-#define _GENERICGA_SELECTOR_ELITISM_DECORATOR_H_
+#ifndef GENERICGA_SELECTOR_ELITISM_DECORATOR_H_
+#define GENERICGA_SELECTOR_ELITISM_DECORATOR_H_
 
 #include <memory>
 #include <vector>
@@ -26,4 +26,4 @@ class ElitismDecorator : public Selector {
 }  // namespace selector
 }  // namespace genericga
 
-#endif  // _GENERICGA_SELECTOR_ELITISM_DECORATOR_H_
+#endif  // GENERICGA_SELECTOR_ELITISM_DECORATOR_H_

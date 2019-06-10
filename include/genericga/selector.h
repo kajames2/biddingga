@@ -1,5 +1,5 @@
-#ifndef _GENERICGA_SELECTOR_H_
-#define _GENERICGA_SELECTOR_H_
+#ifndef GENERICGA_SELECTOR_H_
+#define GENERICGA_SELECTOR_H_
 
 #include <vector>
 
@@ -15,4 +15,4 @@ class Selector {
 
 }  // namespace genericga
 
-#endif  // _GENERICGA_SELECTOR_H_
+#endif  // GENERICGA_SELECTOR_H_
