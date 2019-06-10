@@ -4,6 +4,7 @@ lib
 Debug
 bin
 Release
+output
 
 # Ignore any executables
 bin/*
