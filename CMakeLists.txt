@@ -23,7 +23,6 @@ set(SOURCES
   ${PROJECT_SOURCE_DIR}/src/genericga/vector_ops.cc
   ${PROJECT_SOURCE_DIR}/src/genericga/selector/roulette_zeroed.cc
   ${PROJECT_SOURCE_DIR}/src/genericga/selector/keep_best.cc
-  ${PROJECT_SOURCE_DIR}/src/genericga/selector/keep_commonest.cc
   ${PROJECT_SOURCE_DIR}/src/genericga/selector/roulette.cc
   ${PROJECT_SOURCE_DIR}/src/genericga/selector/tournament.cc
   ${PROJECT_SOURCE_DIR}/src/genericga/selector/tournament_mixed.cc
