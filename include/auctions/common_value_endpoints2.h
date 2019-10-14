@@ -50,9 +50,10 @@ class CommonValueEndpoints2 {
   Eigen::ArrayXd internal_values_;
   Eigen::ArrayXd internal_signals_;
   Eigen::ArrayXd internal_bids_;
-  Eigen::ArrayXXd value_pdf_;
+  Eigen::ArrayXd value_pdf_;
   std::vector<std::function<double(double)>> utility_funcs_;
   std::vector<std::function<double(double)>> prob_weight_funcs_;
+  numericaldists::Distribution error_dist_;
 };
 
 }  // namespace auctions

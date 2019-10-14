@@ -18,11 +18,13 @@ set(SOURCES
   ${PROJECT_SOURCE_DIR}/src/auctions/common_value_signal.cc
   ${PROJECT_SOURCE_DIR}/src/auctions/common_value_signal_second.cc
   ${PROJECT_SOURCE_DIR}/src/auctions/common_value_endpoints.cc
+  ${PROJECT_SOURCE_DIR}/src/auctions/common_value_endpoints2.cc
   ${PROJECT_SOURCE_DIR}/src/auctions/first_price_reverse.cc
   ${PROJECT_SOURCE_DIR}/src/auctions/first_price_2d.cc
   ${PROJECT_SOURCE_DIR}/src/genericga/vector_ops.cc
   ${PROJECT_SOURCE_DIR}/src/genericga/selector/roulette_zeroed.cc
   ${PROJECT_SOURCE_DIR}/src/genericga/selector/keep_best.cc
+  ${PROJECT_SOURCE_DIR}/src/genericga/selector/keep_commonest.cc
   ${PROJECT_SOURCE_DIR}/src/genericga/selector/roulette.cc
   ${PROJECT_SOURCE_DIR}/src/genericga/selector/tournament.cc
   ${PROJECT_SOURCE_DIR}/src/genericga/selector/tournament_mixed.cc

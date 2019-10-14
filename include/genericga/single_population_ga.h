@@ -30,19 +30,24 @@ class SinglePopulationGA : public AbstractSinglePopulationGA<Phen> {
   void SetFitnessCalculator(
       std::function<std::vector<float>(const std::vector<Phen>&)> fit_calc)
       override;
+
   std::vector<PhenotypeStrategy<Phen>> GetPopulation() const {
     return pop_.GetPhenotypeStrategies();
   }
+
   PhenotypeStrategy<Phen> SelectStrategy(Selector& sel) override {
     return pop_.SelectPhenotypeStrategy(sel);
   }
+
   std::vector<PhenotypeStrategy<Phen>> SelectStrategies(Selector& sel,
                                                         int n) override {
     return pop_.SelectPhenotypeStrategies(sel, n);
   }
+
   PhenotypeStrategy<Phen> GetBestStrategy() override {
     return SelectStrategy(best_sel);
   }
+
   std::vector<PhenotypeStrategy<Phen>> GetBestStrategies(int n) override {
     return SelectStrategies(best_sel, n);
   }
@@ -50,6 +55,7 @@ class SinglePopulationGA : public AbstractSinglePopulationGA<Phen> {
   PhenotypeStrategy<Phen> GetCommonestStrategy() override {
     return SelectStrategy(commonest_sel);
   }
+
   std::vector<PhenotypeStrategy<Phen>> GetCommonestStrategies(int n) override {
     return SelectStrategies(commonest_sel, n);
   }

@@ -7,6 +7,7 @@
 #include "auctions/first_price_reverse.h"
 #include "auctions/second_price.h"
 #include "auctions/common_value_endpoints.h"
+#include "auctions/common_value_endpoints2.h"
 
 #include "genericga/binary/bit_mutator.h"
 #include "genericga/binary/byte_array_genotype.h"
@@ -320,8 +321,8 @@ int main(int argc, char** argv) {
   auto gas = MakeSubGAs<Auction, Scatter>(configs);
   auto driver = MakeMultipopDriver<Auction, Scatter>(gas, auction);
 
-  int n_rounds = 10;
-  int output_frequency = 1;
+  int n_rounds = 1000;
+  int output_frequency = 10;
   RunAndOutput(driver, gas, auction, n_rounds, output_frequency);
 
   return 0;

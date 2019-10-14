@@ -24,6 +24,7 @@ CommonValueEndpoints2::CommonValueEndpoints2(int n_bidders,
     : n_players_(n_bidders),
       pre_calculated_(false),
       others_bids_cdfs_(n_bidders),
+      error_dist_(error_dist),
       bid_funcs_(n_bidders) {
   utility_funcs_ = std::vector<std::function<double(double)>>(
       n_players_, [](double val) { return val; });
@@ -41,8 +42,6 @@ CommonValueEndpoints2::CommonValueEndpoints2(int n_bidders,
 
   ArrayXd internal_errors = ArrayXd::LinSpaced(
       n_internal_samples, lower(error_dist), upper(error_dist));
-  error_pdf_ = internal_errors.unaryExpr(
-      [&error_dist](double x) -> double { return pdf(error_dist, x); });
   value_pdf_ = internal_values_.unaryExpr(
       [&value_dist](double x) -> double { return pdf(value_dist, x); });
 }
@@ -58,22 +57,26 @@ float CommonValueEndpoints2::GetFitness(const Scatter& bid_func, int id) const {
   if (!pre_calculated_) {
     Precalculate();
   }
-
   ArrayXd integration_signals =
       ArrayXd::LinSpaced((bid_func.xs.size() - 1) * 3, bid_func.xs(0),
                          bid_func.xs(bid_func.xs.size() - 1));
   ArrayXd value_likelihoods = value_pdf_;
-  ArrayXd error_likelihoods = error_pdf_;
-
+  ArrayXXd win_probs(integration_signals.size(), internal_values_.size());
+  ArrayXXd profits(integration_signals.size(), internal_values_.size());
+  ArrayXXd likelihoods(integration_signals.size(), internal_values_.size());
+  Distribution error_dist = error_dist_;
   for (int v = 0; v < internal_values_.size(); ++v) {
     ArrayXd bids = Interpolate(bid_func, integration_signals);
-    ArrayXd win_probs(integration_signals.size(), internal_values_.size());
-    ArrayXd profits(integration_signals.size(), internal_values_.size());
+    ArrayXd error_likelihoods =
+        (integration_signals - internal_values_[v])
+            .unaryExpr([&error_dist](double x) -> double {
+              return pdf(error_dist, x);
+            });
+    likelihoods.col(v) = value_likelihoods[v] * error_likelihoods;
     win_probs.col(v) =
         Interpolate(internal_bids_, others_bids_cdfs_[id].col(v), bids);
     profits.col(v) = internal_values_[v] - bids;
   }
-
   ArrayXXd utils =
       profits.unaryExpr(utility_funcs_[id]) *
           win_probs.unaryExpr(prob_weight_funcs_[id]) +
@@ -91,15 +94,20 @@ void CommonValueEndpoints2::Precalculate() const {
   others_bids_cdfs_ = std::vector<ArrayXXd>(
       n_players_,
       ArrayXXd::Zero(internal_bids_.size(), internal_values_.size()));
-
+  Distribution error_dist = error_dist_;
 #pragma omp parallel for
   for (int v = 0; v < internal_values_.size(); ++v) {
+    ArrayXd error_likelihoods =
+        (internal_signals_ - v)
+        .unaryExpr([&error_dist](double x) -> double {
+            return pdf(error_dist, x);
+          });
     std::vector<ArrayXd> cdfs(n_players_,
                               ArrayXd::Zero(internal_signals_.size()));
     for (int i = 0; i < n_players_; ++i) {
-      if (value_pdf_.col(v).sum() > 0) {
+      if (value_pdf_(v) > 0) {
         cdfs[i] = RandomVariableFunctionCDF(
-            internal_signals_, value_pdf_.col(v), bid_sets[i], internal_bids_);
+            internal_signals_, error_likelihoods, bid_sets[i], internal_bids_);
       }
     }
     for (int i = 0; i < n_players_; ++i) {

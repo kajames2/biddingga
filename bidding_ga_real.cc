@@ -185,8 +185,7 @@ void RunWinnerPay() {
     configs.push_back(std::move(config));
   }
   int n_rounds = 1000;
-  AllPay auction(dists, 10001, 3);
-  AllPay auction_full_eval(dists, 10001);
+  AllPay auction(dists);
   auto gas = MakeSubGAs<AllPay, Phen>(std::move(configs));
   auto driver = MakeMultipopDriver<AllPay, Phen>(gas, auction);
   ArrayXd vals = gas[0]->GetBestStrategy().phenotype.xs.transpose();
@@ -203,11 +202,6 @@ void RunWinnerPay() {
         std::cout << vals(i) << ",";
       }
       std::cout << std::endl;
-      auction_full_eval.AcceptStrategy(gas[j]->GetBestStrategy().phenotype, j);
-    }
-    for (int j = 0; j < gas.size(); ++j) {
-      std::cout << auction_full_eval.GetFitness(gas[j]->GetBestStrategy().phenotype, j)
-                << "," << gas[j]->GetBestStrategy().fitness << "," << std::endl;
     }
   }
 }
