@@ -51,8 +51,6 @@ void CommonValueEndpoints2::AcceptStrategy(Scatter bid_func, int id) {
   pre_calculated_ = false;
 }
 
-// rel_bid_func -- x-values are different precisions, y-values are the bid
-// relative to mstar given the precision
 float CommonValueEndpoints2::GetFitness(const Scatter& bid_func, int id) const {
   if (!pre_calculated_) {
     Precalculate();

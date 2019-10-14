@@ -320,7 +320,6 @@ int main(int argc, char** argv) {
   //Auction auction(n_players, value_dist, error_dist);
   auto gas = MakeSubGAs<Auction, Scatter>(configs);
   auto driver = MakeMultipopDriver<Auction, Scatter>(gas, auction);
-
   int n_rounds = 1000;
   int output_frequency = 10;
   RunAndOutput(driver, gas, auction, n_rounds, output_frequency);
