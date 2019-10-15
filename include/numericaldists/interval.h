@@ -17,7 +17,6 @@ struct Interval {
 bool InInterval(Interval interval, double val);
 double GetSpan(Interval interval);
 bool operator==(const Interval& g1, const Interval& g2);
-std::size_t hash_value(const Interval& s);
 std::ostream& operator<<(std::ostream& os, const Interval& r);
 
 }  // namespace numericaldists

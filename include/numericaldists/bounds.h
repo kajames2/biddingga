@@ -17,7 +17,6 @@ struct Bounds {
 };
 
 bool operator==(const Bounds& g1, const Bounds& g2);
-std::size_t hash_value(const Bounds& s);
 std::ostream& operator<<(std::ostream& os, const Bounds& r);
 
 }  // namespace numericaldists

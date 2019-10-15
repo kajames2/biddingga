@@ -5,7 +5,6 @@
 #include <algorithm>
 
 #include <boost/math/distributions/uniform.hpp>
-#include <boost/math/quadrature/gauss_kronrod.hpp>
 #include "numericaldists/distribution_ops.h"
 #include "numericaldists/function_ops.h"
 #include "numericaldists/order_statistic_ops.h"
