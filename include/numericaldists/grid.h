@@ -11,6 +11,7 @@ struct Grid {
   Eigen::ArrayXXd zs;
 };
 
+std::ostream& operator<<(std::ostream& os, const Grid& grid);
 }  // namespace numericaldists
 
 #endif  // BIDDINGGA_GRID_H_
