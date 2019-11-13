@@ -16,7 +16,7 @@ namespace auctions {
 ArrayXXd CommonValueSignalEndpoints::GetSignalPDF(int id, int value_index,
                                                   ArrayXd midpoints,
                                                   ArrayXd precisions) const {
-  auto pdf = ArrayXXd::Zero(midpoints.size(), precisions.size());
+  ArrayXXd pdf = ArrayXXd::Zero(midpoints.size(), precisions.size());
   Interpolate2D(relative_pdfs_[id].xs + internal_values_[value_index],
                 relative_pdfs_[id].ys, relative_pdfs_[id].zs, midpoints,
                 precisions);
@@ -61,9 +61,9 @@ CommonValueSignalEndpoints::CommonValueSignalEndpoints(
       n_players_, [](double prob) { return prob; });
 
   double buffer = 0.05 * error_range;
-  auto rel_midpoints = ArrayXd::LinSpaced(
+  ArrayXd rel_midpoints = ArrayXd::LinSpaced(
       n_internal_samples_, min_error - buffer, max_error + buffer);
-  auto buffered_precs =
+  ArrayXd buffered_precs =
       ArrayXd::LinSpaced(n_internal_samples_, 0, error_range + 2 * buffer);
   ArrayXd rel_midpoint_cdf = rel_midpoints.unaryExpr(
       [&error_dist](double x) -> double { return cdf(error_dist, x); });
@@ -125,8 +125,8 @@ float CommonValueSignalEndpoints::GetFitness(const Grid& bid_func,
     if (v > 0 && internal_values_(v - 1) > max_integration_value) {
       break;
     }
-    auto win_probs = ArrayXXd::Zero(integration_midpoints.size(),
-                                    integration_precisions.size());
+    ArrayXXd win_probs = ArrayXXd::Zero(integration_midpoints.size(),
+                                        integration_precisions.size());
     for (int i = 0; i < bids.rows(); ++i) {
       win_probs.row(i) = Interpolate(internal_bids_,
                                      others_bids_cdfs_[id].col(v), bids.row(i));
@@ -140,7 +140,7 @@ float CommonValueSignalEndpoints::GetFitness(const Grid& bid_func,
                      utility_funcs_[id](0) *
                          (1 - win_probs).unaryExpr(prob_weight_funcs_[id]);
     sub_areas(v) = Areas2D(integration_midpoints, integration_precisions,
-                           utils * likelihoods[v])
+                           utils * likelihoods)
                        .sum();
   }
   return Areas(internal_values_, sub_areas).sum();
@@ -199,9 +199,10 @@ void CommonValueSignalEndpoints::Precalculate() const {
     bid_sets.push_back(
         Interpolate2D(bid, internal_midpoints_, internal_precisions_));
   }
-  for (const auto& bid : one_draw_bids_) {
-    one_draw_bid_sets.push_back(Interpolate(bid, internal_midpoints_));
-  }
+  // std::cout << "Precalculating 2" << std::endl;
+  // for (const auto& bid : one_draw_bids_) {
+  //  one_draw_bid_sets.push_back(Interpolate(bid, internal_midpoints_));
+  //}
   others_bids_cdfs_ = std::vector<ArrayXXd>(
       n_players_, ArrayXXd::Zero(n_internal_samples_, n_internal_samples_));
 #pragma omp parallel for
@@ -210,7 +211,7 @@ void CommonValueSignalEndpoints::Precalculate() const {
     if (value_pdf_(v) > 0) {
       for (int i = 0; i < n_players_; ++i) {
         if (n_draws_[i] > 1) {
-          auto signal_likelihoods =
+          ArrayXXd signal_likelihoods =
               GetSignalPDF(i, v, internal_midpoints_, internal_precisions_);
           cdfs[i] = RandomVariableFunctionCDF(
               internal_midpoints_, internal_precisions_, signal_likelihoods,
