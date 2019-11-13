@@ -2,7 +2,7 @@
 #include <boost/math/distributions/normal.hpp>
 #include <boost/math/distributions/uniform.hpp>
 
-#include "auctions/first_price_2d.h"
+#include "auctions/common_value_signal_endpoints.h"
 
 #include "genericga/binary/bit_mutator.h"
 #include "genericga/binary/byte_array_genotype.h"
@@ -20,9 +20,10 @@
 #include "genericga/single_population_ga.h"
 
 #include "numericaldists/distribution.h"
-#include "numericaldists/grid_multi.h"
+#include "numericaldists/grid.h"
 
 #include <algorithm>
+#include <cstdlib>
 #include <eigen3/Eigen/Core>
 #include <iostream>
 #include <vector>
@@ -416,33 +417,34 @@ void RunAndOutput(
 }
 
 int main(int argc, char** argv) {
-  std::vector<Distribution> dists{
-      uniform_distribution<>(0, 1), uniform_distribution<>(0, 1),
-      uniform_distribution<>(0, 1), uniform_distribution<>(0, 1)};
-  std::function<double(double, double)> util = [](double x, double y) {
-    if (x > 0 && y > 0) {
-      return 0.0;
-    } else if (x > 0) {
-      return x;
+  std::vector<int> n_draws;
+  if (argc < 2) {
+    std::cout << "Usage: " << argv[0] << " Draws1, Draws2 ..." << std::endl;
+    return 1;
+  } else {
+    for (int i = 1; i < argc; ++i) {
+      n_draws.push_back(std::atoi(argv[i]));
     }
-    return y;
-  };
-  auto utils =
-      std::vector<std::function<double(double, double)>>(dists.size(), util);
-
-  Interval value_range = {lower(dists), upper(dists)};
-  std::vector<BidFunctionGAConfiguration> configs;
-  for (int i = 0; i < dists.size(); ++i) {
-    BidFunctionGAConfiguration config;
-    config.valuex_range = {lower(dists[i]), upper(dists[i])};
-    config.valuey_range = {lower(dists[i]), upper(dists[i])};
-    config.bid_range = {lower(dists[i]), upper(dists[i])};
-    configs.push_back(config);
   }
 
-  FirstPrice2D auction(dists, dists, utils);
-  auto gas = MakeSubGAs<FirstPrice2D, Grid>(configs);
-  auto driver = MakeMultipopDriver<FirstPrice2D, Grid>(gas, auction);
+  Distribution value_dist = uniform_distribution<>(500, 9500);
+  Distribution error_dist = uniform_distribution<>(-500, 500);
+  std::vector<BidFunctionGAConfiguration> configs;
+  for (int i = 0; i < n_draws.size(); ++i) {
+    BidFunctionGAConfiguration config;
+    config.id = i;
+    config.valuex_range = {lower(value_dist) + lower(error_dist),
+                           upper(value_dist) + upper(error_dist)};
+    config.valuey_range = {0, 2 * (upper(error_dist) - lower(error_dist))};
+    config.bid_range = {lower(value_dist) + lower(error_dist),
+                        upper(value_dist) + upper(error_dist)};
+    configs.push_back(std::move(config));
+  }
+
+  CommonValueSignalEndpoints auction(value_dist, error_dist, n_draws);
+  auto gas = MakeSubGAs<CommonValueSignalEndpoints, Grid>(configs);
+  auto driver =
+      MakeMultipopDriver<CommonValueSignalEndpoints, Grid>(gas, auction);
 
   int n_rounds = 3000;
   int output_frequency = 30;

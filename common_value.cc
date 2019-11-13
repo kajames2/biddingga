@@ -31,6 +31,9 @@
 #include "numericaldists/distribution.h"
 
 #include <eigen3/Eigen/Core>
+#include <iostream>
+#include <algorithm>
+#include <cstdlib>
 
 using namespace genericga;
 using namespace auctions;
@@ -228,8 +231,8 @@ std::unique_ptr<CompositeGA<Phen>> Make1DGA(BidFunctionGAConfiguration config,
     gas.push_back(std::make_shared<SinglePopulationGA<Gen, Phen>>(
         BinaryGA<Phen>(conversion, config.n_strategies, n_bits)));
   }
-  return std::make_unique<CompositeGA<Phen>>(
-      gas, MedianJoiner{n_floats_per_comp});
+  return std::make_unique<CompositeGA<Phen>>(gas,
+                                             MedianJoiner{n_floats_per_comp});
 }
 
 template <class Environment, class Phen>
@@ -291,8 +294,8 @@ int main(int argc, char** argv) {
       gas.push_back(
           MakeSub0DGA<CommonValueSignalSecond, float>(std::move(configs[i])));
     } else {
-      gas.push_back(MakeSub1DGA<CommonValueSignalSecond, Phen>(std::move(configs[i]),
-                                                         n_composites));
+      gas.push_back(MakeSub1DGA<CommonValueSignalSecond, Phen>(
+          std::move(configs[i]), n_composites));
     }
   }
 
