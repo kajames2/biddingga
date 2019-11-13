@@ -59,8 +59,8 @@ float CommonValueEndpoints2::GetFitness(const Scatter& bid_func, int id) const {
   ArrayXXd profits(integration_signals.size(), internal_values_.size());
   ArrayXXd likelihoods(integration_signals.size(), internal_values_.size());
   Distribution error_dist = error_dist_;
+  ArrayXd bids = Interpolate(bid_func, integration_signals);
   for (int v = 0; v < internal_values_.size(); ++v) {
-    ArrayXd bids = Interpolate(bid_func, integration_signals);
     ArrayXd error_likelihoods =
         (integration_signals - internal_values_[v])
             .unaryExpr([&error_dist](double x) -> double {

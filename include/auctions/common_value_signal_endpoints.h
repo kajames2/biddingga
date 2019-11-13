@@ -22,7 +22,7 @@ class CommonValueSignalEndpoints {
                              int n_internal_samples = 201,
                              int value_integration_samples = 201);
   void AcceptStrategy(numericaldists::Grid bid_func, int id);
-  void AcceptStrategy(std::vector<float> bid, int id);
+  void AcceptStrategy(numericaldists::Scatter bid, int id);
   float GetFitness(const numericaldists::Grid& bid_func, int id) const;
   std::vector<float> GetFitness(
       const std::vector<numericaldists::Grid>& bid_funcs, int id) const {
@@ -53,7 +53,9 @@ class CommonValueSignalEndpoints {
     return fits;
   }
 
-  Eigen::ArrayXXd GetSignalPDF(int id, int value_index) const;
+  Eigen::ArrayXXd GetSignalPDF(int id, int value_index,
+                               Eigen::ArrayXd midpoints,
+                               Eigen::ArrayXd precisions) const;
 
  private:
   double GetIntegrand(const numericaldists::Grid& bid_func, int id,
