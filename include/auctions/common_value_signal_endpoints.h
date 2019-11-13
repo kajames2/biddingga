@@ -53,24 +53,29 @@ class CommonValueSignalEndpoints {
     return fits;
   }
 
+  Eigen::ArrayXXd GetSignalPDF(int id, int value_index) const;
+
  private:
   double GetIntegrand(const numericaldists::Grid& bid_func, int id,
                       float value) const;
   void Precalculate() const;
 
   int n_players_;
+  int n_internal_samples_;
   std::vector<int> n_draws_;
   mutable bool pre_calculated_;
   std::vector<numericaldists::Grid> bid_funcs_;
   std::vector<numericaldists::Scatter> one_draw_bids_;
   mutable std::vector<Eigen::ArrayXXd> others_bids_cdfs_;
   Eigen::ArrayXd internal_values_;
-  Eigen::ArrayXd internal_mstars_;
+  Eigen::ArrayXd internal_midpoints_;
   Eigen::ArrayXd internal_precisions_;
   Eigen::ArrayXd internal_bids_;
-  std::vector<Eigen::ArrayXXd> value_pdf_;
+  Eigen::ArrayXd value_pdf_;
+  std::vector<numericaldists::Grid> relative_pdfs_;
   std::vector<std::function<double(double)>> utility_funcs_;
   std::vector<std::function<double(double)>> prob_weight_funcs_;
+  numericaldists::Distribution error_dist_;
 };
 
 }  // namespace auctions
