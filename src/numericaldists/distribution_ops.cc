@@ -1,12 +1,11 @@
 #include <algorithm>
 #include <functional>
-#include <iostream>
 #include <numeric>
-#include <vector>
 
 #include "numericaldists/distribution.h"
 #include "numericaldists/function_ops.h"
 
+#include <cmath>
 #include <eigen3/Eigen/Core>
 
 using namespace Eigen;
@@ -63,16 +62,17 @@ ArrayXXd PDF2D(const ArrayXd& xs, const ArrayXd& ys, const ArrayXXd& cdf) {
 ArrayXd RandomVariableFunctionCDF(const ArrayXd& xs, const ArrayXd& pdf,
                                   const ArrayXd& func_vals,
                                   const ArrayXd& new_xs) {
-  int size = xs.size();
-  int new_size = new_xs.size();
-  ArrayXd probs = Areas(xs, pdf).tail(size - 1);
-  ArrayXd f_vals = OverlapMeanPool(func_vals);
-  double spacing = (new_xs(new_xs.size() - 1) - new_xs(0)) / (new_size - 1);
-  ArrayXi inds = ((f_vals - new_xs(0)) / spacing)
-                     .max(0)
-                     .min(new_xs.size() - 1)
-                     .ceil()
-                     .cast<int>();
+  const int size = xs.size();
+  const int new_size = new_xs.size();
+  const ArrayXd probs = Areas(xs, pdf).tail(size - 1);
+  const ArrayXd f_vals = OverlapMeanPool(func_vals);
+  const double spacing =
+      (new_xs(new_xs.size() - 1) - new_xs(0)) / (new_size - 1);
+  const ArrayXi inds = ((f_vals - new_xs(0)) / spacing)
+                           .max(0)
+                           .min(new_xs.size() - 1)
+                           .ceil()
+                           .cast<int>();
   ArrayXd f_pdf = ArrayXd::Zero(new_size);
   for (int i = 0; i < size - 1; ++i) {
     f_pdf[inds(i)] += probs(i);
@@ -163,8 +163,6 @@ ArrayXXd TwoRandomVariableFunctionCDF(const ArrayXd& xs, const ArrayXd& ys,
 ArrayXd RandomVariableFunctionCDF(const ArrayXd& xs, const ArrayXd& ys,
                                   const ArrayXXd& joint_pdf, const ArrayXXd& zs,
                                   const ArrayXd& new_xs) {
-  int x_size = xs.size();
-  int y_size = ys.size();
   int new_size = new_xs.size();
   ArrayXXd probs = Areas2D(xs, ys, joint_pdf)
                        .bottomRightCorner(ys.size() - 1, xs.size() - 1);
@@ -214,10 +212,13 @@ ArrayXXd ApplyConditional(const ArrayXd& xs, const ArrayXd& ys,
                           const std::function<bool(double, double)>& cond) {
   MatrixXd x_mat = GetXMesh(xs, ys.size());
   MatrixXd y_mat = GetYMesh(ys, xs.size());
-  ArrayXXd pdf_cond = x_mat.binaryExpr(y_mat,
+  ArrayXXd pdf_cond = x_mat
+                          .binaryExpr(y_mat,
                                       [cond](double x, double y) {
                                         return cond(x, y) ? 0.0 : 1.0;
-                                      }).array() * pdf;
+                                      })
+                          .array() *
+                      pdf;
   pdf_cond /= Areas2D(xs, ys, pdf_cond).sum();
   return pdf_cond;
 }

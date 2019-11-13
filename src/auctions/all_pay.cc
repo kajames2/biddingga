@@ -1,8 +1,5 @@
 #include "auctions/all_pay.h"
 
-#include <algorithm>
-#include <iostream>
-
 #include "numericaldists/distribution.h"
 #include "numericaldists/distribution_ops.h"
 #include "numericaldists/function_ops.h"
@@ -10,7 +7,7 @@
 
 #include <omp.h>
 #include <eigen3/Eigen/Core>
-#include <iostream>
+#include <vector>
 
 using namespace numericaldists;
 using namespace Eigen;
@@ -45,7 +42,6 @@ void AllPay::AcceptStrategy(const Scatter& bids, int id) {
   bid_cdfs_[id] = {bid_range, cdf};
 }
 
-
 float AllPay::GetFitness(const Scatter& bids_in, int id) const {
   ArrayXd integrate_vals =
       ArrayXd::LinSpaced((bids_in.xs.size() - 1) * 3, bids_in.xs(0),
@@ -58,14 +54,13 @@ float AllPay::GetFitness(const Scatter& bids_in, int id) const {
       win_probs *= Interpolate(bid_cdfs_[j], bids);
     }
   }
-  ArrayXd utils =
-      profits.unaryExpr(utility_funcs_[id]) *
-          win_probs.unaryExpr(prob_weight_funcs_[id]) +
-      (-bids).unaryExpr(utility_funcs_[id]) * (1 - win_probs).unaryExpr(prob_weight_funcs_[id]);
+  ArrayXd utils = profits.unaryExpr(utility_funcs_[id]) *
+                      win_probs.unaryExpr(prob_weight_funcs_[id]) +
+                  (-bids).unaryExpr(utility_funcs_[id]) *
+                      (1 - win_probs).unaryExpr(prob_weight_funcs_[id]);
   ArrayXd likelihoods = Interpolate(value_pdfs_[id], integrate_vals);
   return Areas(integrate_vals, utils * likelihoods).sum();
 }
-
 
 float AllPay::GetRevenue(const Scatter& bids_in, int id) const {
   ArrayXd integrate_vals =
@@ -82,7 +77,6 @@ float AllPay::GetRevenue(const Scatter& bids_in, int id) const {
   ArrayXd likelihoods = Interpolate(value_pdfs_[id], integrate_vals);
   return Areas(integrate_vals, revenues * likelihoods).sum();
 }
-
 
 float AllPay::GetValue(const Scatter& bids_in, int id) const {
   ArrayXd integrate_vals =

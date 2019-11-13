@@ -5,6 +5,9 @@
 #include "numericaldists/interval.h"
 
 #include <eigen3/Eigen/Dense>
+#include <utility>
+#include <vector>
+#include <algorithm>
 
 using namespace Eigen;
 
@@ -248,7 +251,6 @@ std::pair<ArrayXd, ArrayXd> Inverse(const ArrayXd& xs, const ArrayXd& ys,
 }
 
 ArrayXd Derivative(const ArrayXd& xs, const ArrayXd& ys) {
-  int size = xs.size();
   ArrayXd x_mids = OverlapMeanPool(xs);
   ArrayXd derivs = Differences(ys) / Differences(xs);
   ArrayXd derivs_resample = Interpolate(x_mids, derivs, xs);

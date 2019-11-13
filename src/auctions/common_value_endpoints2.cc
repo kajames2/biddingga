@@ -1,10 +1,7 @@
 #include "auctions/common_value_endpoints2.h"
 
-#include <iostream>
-
-#include <algorithm>
-
 #include <boost/math/distributions/uniform.hpp>
+#include <vector>
 #include "numericaldists/distribution_ops.h"
 #include "numericaldists/function_ops.h"
 #include "numericaldists/order_statistic_ops.h"
@@ -23,8 +20,8 @@ CommonValueEndpoints2::CommonValueEndpoints2(int n_bidders,
     : n_players_(n_bidders),
       pre_calculated_(false),
       others_bids_cdfs_(n_bidders),
-      error_dist_(error_dist),
-      bid_funcs_(n_bidders) {
+      bid_funcs_(n_bidders),
+      error_dist_(error_dist) {
   utility_funcs_ = std::vector<std::function<double(double)>>(
       n_players_, [](double val) { return val; });
   prob_weight_funcs_ = std::vector<std::function<double(double)>>(
@@ -95,14 +92,13 @@ void CommonValueEndpoints2::Precalculate() const {
 #pragma omp parallel for
   for (int v = 0; v < internal_values_.size(); ++v) {
     ArrayXd error_likelihoods =
-        (internal_signals_ - v)
-        .unaryExpr([&error_dist](double x) -> double {
-            return pdf(error_dist, x);
-          });
+        (internal_signals_ - v).unaryExpr([&error_dist](double x) -> double {
+          return pdf(error_dist, x);
+        });
     std::vector<ArrayXd> cdfs(n_players_,
                               ArrayXd::Zero(internal_signals_.size()));
-    for (int i = 0; i < n_players_; ++i) {
-      if (value_pdf_(v) > 0) {
+    if (value_pdf_(v) > 0) {
+      for (int i = 0; i < n_players_; ++i) {
         cdfs[i] = RandomVariableFunctionCDF(
             internal_signals_, error_likelihoods, bid_sets[i], internal_bids_);
       }
