@@ -2,6 +2,7 @@
 
 #include <boost/math/distributions/uniform.hpp>
 #include <cstdlib>
+#include <iostream>
 #include <vector>
 #include "numericaldists/distribution_ops.h"
 #include "numericaldists/function_ops.h"
@@ -144,7 +145,7 @@ float CommonValueSignalEndpoints::GetFitness(const Grid& bid_func,
                        .sum();
   }
   return Areas(internal_values_, sub_areas).sum();
-}  // namespace auctions
+}
 
 float CommonValueSignalEndpoints::GetFitness(const Scatter& bid_func,
                                              int id) const {
@@ -193,6 +194,7 @@ float CommonValueSignalEndpoints::GetFitness(const Scatter& bid_func,
 }
 
 void CommonValueSignalEndpoints::Precalculate() const {
+  std::cout << "Start Precalculating" << std::endl;
   std::vector<ArrayXXd> bid_sets;
   std::vector<ArrayXd> one_draw_bid_sets;
   for (const auto& bid : bid_funcs_) {
@@ -238,6 +240,8 @@ void CommonValueSignalEndpoints::Precalculate() const {
           HighestOrderStatisticCDF(internal_bids_, other_cdfs);
     }
   }
+  pre_calculated_ = true;
+  std::cout << "End Precalculating" << std::endl;
 }
 
 }  // namespace auctions

@@ -44,8 +44,8 @@ struct BidFunctionGAConfiguration {
   Interval bid_range = {0, 1};
   int nx_composites = 10;
   int ny_composites = 10;
-  int n_strategies = 100;
-  int n_children = 100;
+  int n_strategies = 10;
+  int n_children = 10;
   int nx_segments = 60;
   int ny_segments = 60;
   int bit_precision = 32;
