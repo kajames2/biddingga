@@ -5,22 +5,22 @@
 #include <functional>
 #include <vector>
 
-#include "numericaldists/distribution.h"
 #include "numericaldists/grid.h"
 #include "numericaldists/interval.h"
 #include "numericaldists/scatter.h"
 
+#include <boost/math/distributions/uniform.hpp>
 #include <eigen3/Eigen/Core>
 
 namespace auctions {
 
 class CommonValueSignalEndpoints {
  public:
-  CommonValueSignalEndpoints(numericaldists::Distribution value_dist,
-                             numericaldists::Distribution error_dist,
+  CommonValueSignalEndpoints(boost::math::uniform_distribution<> value_dist,
+                             boost::math::uniform_distribution<> error_dist,
                              std::vector<int> n_draws,
-                             int n_internal_samples = 201,
-                             int value_integration_samples = 201);
+                             int n_internal_samples = 16,
+                             int value_integration_samples = 16);
   void AcceptStrategy(numericaldists::Grid bid_func, int id);
   void AcceptStrategy(numericaldists::Scatter bid, int id);
   float GetFitness(const numericaldists::Grid& bid_func, int id) const;
@@ -55,7 +55,7 @@ class CommonValueSignalEndpoints {
 
   Eigen::ArrayXXd GetSignalPDF(int id, int value_index,
                                Eigen::ArrayXd midpoints,
-                               Eigen::ArrayXd precisions) const;
+                               Eigen::ArrayXd uncertainties) const;
 
  private:
   double GetIntegrand(const numericaldists::Grid& bid_func, int id,
@@ -71,13 +71,13 @@ class CommonValueSignalEndpoints {
   mutable std::vector<Eigen::ArrayXXd> others_bids_cdfs_;
   Eigen::ArrayXd internal_values_;
   Eigen::ArrayXd internal_midpoints_;
-  Eigen::ArrayXd internal_precisions_;
+  Eigen::ArrayXd internal_uncertainties_;
   Eigen::ArrayXd internal_bids_;
   Eigen::ArrayXd value_pdf_;
   std::vector<numericaldists::Grid> relative_pdfs_;
   std::vector<std::function<double(double)>> utility_funcs_;
   std::vector<std::function<double(double)>> prob_weight_funcs_;
-  numericaldists::Distribution error_dist_;
+  boost::math::uniform_distribution<> error_dist_;
 };
 
 }  // namespace auctions

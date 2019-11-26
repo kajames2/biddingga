@@ -344,7 +344,7 @@ std::unique_ptr<CompositeGA<Phen>> MakeGAComposite(
   int n_floats_per_xcomp = segs_per_xcomp + 1;
   int segs_per_ycomp = config.ny_segments / config.ny_composites;
   int n_floats_per_ycomp = segs_per_ycomp + 1;
-  int size = 2 * (n_floats_per_xcomp * n_floats_per_ycomp);
+  int size = n_floats_per_xcomp * n_floats_per_ycomp;
   int n_bits = size * config.bit_precision;
   binary::FloatEncoding bid_enc(static_cast<float>(config.bid_range.min),
                                 static_cast<float>(config.bid_range.max),
@@ -427,8 +427,8 @@ int main(int argc, char** argv) {
     }
   }
 
-  Distribution value_dist = uniform_distribution<>(500, 9500);
-  Distribution error_dist = uniform_distribution<>(-500, 500);
+  uniform_distribution<> value_dist = uniform_distribution<>(500, 9500);
+  uniform_distribution<> error_dist = uniform_distribution<>(-500, 500);
   std::vector<BidFunctionGAConfiguration> configs;
   for (int i = 0; i < n_draws.size(); ++i) {
     BidFunctionGAConfiguration config;
