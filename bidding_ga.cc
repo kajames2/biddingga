@@ -3,11 +3,11 @@
 #include <boost/math/distributions/uniform.hpp>
 
 #include "auctions/all_pay.h"
+#include "auctions/common_value_endpoints.h"
+#include "auctions/common_value_endpoints2.h"
 #include "auctions/first_price.h"
 #include "auctions/first_price_reverse.h"
 #include "auctions/second_price.h"
-#include "auctions/common_value_endpoints.h"
-#include "auctions/common_value_endpoints2.h"
 
 #include "genericga/binary/bit_mutator.h"
 #include "genericga/binary/byte_array_genotype.h"
@@ -27,7 +27,10 @@
 
 #include "numericaldists/distribution.h"
 
+#include <algorithm>
 #include <eigen3/Eigen/Core>
+#include <iostream>
+#include <vector>
 
 using namespace genericga;
 using namespace auctions;
@@ -160,6 +163,7 @@ struct MedianJoiner {
   PhenotypeStrategy<Phen> operator()(
       const std::vector<PhenotypeStrategy<Phen>>& strats) {
     int n_strats = strats.size();
+    int strat_size = strats[0].phenotype.xs.size();
     ArrayXd joined_xs(n_strats * (strat_size - 1) + 1);
     ArrayXd joined_ys(n_strats * (strat_size - 1) + 1);
     float fit = 0;
@@ -183,7 +187,6 @@ struct MedianJoiner {
         << strats[strats.size() - 1].phenotype.ys.segment(1, strat_size - 1);
     return PhenotypeStrategy<Phen>{{joined_xs, joined_ys}, fit};
   }
-  int strat_size;
 };
 
 template <class Phen>
@@ -207,8 +210,7 @@ std::unique_ptr<CompositeGA<Phen>> MakeGAComposite(
     gas.push_back(std::make_shared<SinglePopulationGA<Gen, Phen>>(
         BinaryGA<Phen>(conversion, config.n_strategies, n_bits)));
   }
-  return std::make_unique<CompositeGA<Phen>>(
-      gas, MedianJoiner{n_floats_per_comp});
+  return std::make_unique<CompositeGA<Phen>>(gas, MedianJoiner());
 }
 
 template <class Environment, class Phen>
@@ -309,15 +311,16 @@ int main(int argc, char** argv) {
   std::vector<BidFunctionGAConfiguration> configs;
   for (int i = 0; i < n_players; ++i) {
     BidFunctionGAConfiguration config;
-    config.value_range = {lower(value_dist) + lower(error_dist), upper(value_dist) + upper(error_dist)};
-    config.bid_range = {lower(value_dist) + lower(error_dist), upper(value_dist) + upper(error_dist)};
+    config.value_range = {lower(value_dist) + lower(error_dist),
+                          upper(value_dist) + upper(error_dist)};
+    config.bid_range = {lower(value_dist) + lower(error_dist),
+                        upper(value_dist) + upper(error_dist)};
     configs.push_back(config);
   }
 
-  
   using Auction = CommonValueEndpoints;
   Auction auction(n_players, value_dist, error_dist);
-  //Auction auction(n_players, value_dist, error_dist);
+  // Auction auction(n_players, value_dist, error_dist);
   auto gas = MakeSubGAs<Auction, Scatter>(configs);
   auto driver = MakeMultipopDriver<Auction, Scatter>(gas, auction);
   int n_rounds = 1000;

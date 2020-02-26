@@ -239,7 +239,6 @@ void CommonValueSignalEndpoints::Precalculate() const {
           HighestOrderStatisticCDF(internal_bids_, other_cdfs);
     }
   }
-  int v = n_internal_samples_ / 2;
   pre_calculated_ = true;
 }
 

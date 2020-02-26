@@ -39,15 +39,15 @@ using Phen = Grid;
 
 struct BidFunctionGAConfiguration {
   int id = -1;
-  Interval valuex_range = {0, 1};
-  Interval valuey_range = {0, 1};
+  Interval midpoint_range = {0, 1};
+  Interval uncertainty_range = {0, 1};
   Interval bid_range = {0, 1};
-  int nx_composites = 10;
-  int ny_composites = 10;
-  int n_strategies = 10;
-  int n_children = 10;
-  int nx_segments = 60;
-  int ny_segments = 60;
+  int nmid_composites = 10;
+  int nunc_composites = 10;
+  int n_strategies = 100;
+  int n_children = 100;
+  int nmid_segments = 60;
+  int nunc_segments = 60;
   int bit_precision = 32;
 };
 
@@ -115,14 +115,14 @@ struct BinaryToGrid {
 };
 
 struct JoinerSortDecorator {
-  PhenotypeStrategy<Phen> operator()(
-      const std::vector<PhenotypeStrategy<Phen>>& strats) {
+  PhenotypeStrategy<Grid> operator()(
+      const std::vector<PhenotypeStrategy<Grid>>& strats) {
     auto strat = joiner(strats);
     SortByRow(strat.phenotype.zs);
     return strat;
   }
-  std::function<PhenotypeStrategy<Phen>(
-      const std::vector<PhenotypeStrategy<Phen>>&)>
+  std::function<PhenotypeStrategy<Grid>(
+      const std::vector<PhenotypeStrategy<Grid>>&)>
       joiner;
 };
 
@@ -133,7 +133,7 @@ struct MeanJoiner {
       return strats[0];
     }
     assert(nx_chunks_ * ny_chunks_ == strats.size());
-    PhenotypeStrategy<Phen> joined{
+    PhenotypeStrategy<Grid> joined{
         {JoinX(strats), JoinY(strats), JoinZ(strats)}, JoinFitnesses(strats)};
     return joined;
   }
@@ -336,13 +336,13 @@ struct MeanJoiner {
 };
 
 template <class Phen>
-std::unique_ptr<CompositeGA<Phen>> MakeGAComposite(
+std::unique_ptr<CompositeGA<Grid>> MakeGAComposite(
     BidFunctionGAConfiguration config) {
-  assert(config.nx_segments % config.nx_composites == 0);
-  assert(config.ny_segments % config.ny_composites == 0);
-  int segs_per_xcomp = config.nx_segments / config.nx_composites;
+  assert(config.nmid_segments % config.nmid_composites == 0);
+  assert(config.nunc_segments % config.nunc_composites == 0);
+  int segs_per_xcomp = config.nmid_segments / config.nmid_composites;
   int n_floats_per_xcomp = segs_per_xcomp + 1;
-  int segs_per_ycomp = config.ny_segments / config.ny_composites;
+  int segs_per_ycomp = config.nunc_segments / config.nunc_composites;
   int n_floats_per_ycomp = segs_per_ycomp + 1;
   int size = n_floats_per_xcomp * n_floats_per_ycomp;
   int n_bits = size * config.bit_precision;
@@ -350,24 +350,26 @@ std::unique_ptr<CompositeGA<Phen>> MakeGAComposite(
                                 static_cast<float>(config.bid_range.max),
                                 config.bit_precision);
   std::vector<binary::FloatEncoding> encodings(size, bid_enc);
-  ArrayXd xvals = ArrayXd::LinSpaced(
-      config.nx_segments + 1, config.valuex_range.min, config.valuex_range.max);
-  ArrayXd yvals = ArrayXd::LinSpaced(
-      config.ny_segments + 1, config.valuey_range.min, config.valuey_range.max);
-  std::vector<std::shared_ptr<AbstractSinglePopulationGA<Phen>>> gas;
-  for (int row = 0; row < config.ny_segments; row += segs_per_ycomp) {
-    for (int col = 0; col < config.nx_segments; col += segs_per_xcomp) {
+  ArrayXd xvals =
+      ArrayXd::LinSpaced(config.nmid_segments + 1, config.midpoint_range.min,
+                         config.midpoint_range.max);
+  ArrayXd yvals =
+      ArrayXd::LinSpaced(config.nunc_segments + 1, config.uncertainty_range.min,
+                         config.uncertainty_range.max);
+  std::vector<std::shared_ptr<AbstractSinglePopulationGA<Grid>>> gas;
+  for (int row = 0; row < config.nunc_segments; row += segs_per_ycomp) {
+    for (int col = 0; col < config.nmid_segments; col += segs_per_xcomp) {
       ArrayXd sub_xvals = xvals.segment(col, n_floats_per_xcomp);
       ArrayXd sub_yvals = yvals.segment(row, n_floats_per_ycomp);
-      std::function<Phen(const Gen&)> conversion =
+      std::function<Grid(const Gen&)> conversion =
           SortDecorator{BinaryToGrid{sub_xvals, sub_yvals, encodings}};
-      gas.push_back(std::make_shared<SinglePopulationGA<Gen, Phen>>(
-          BinaryGA<Phen>(conversion, config.n_strategies, n_bits)));
+      gas.push_back(std::make_shared<SinglePopulationGA<Gen, Grid>>(
+          BinaryGA<Grid>(conversion, config.n_strategies, n_bits)));
     }
   }
-  return std::make_unique<CompositeGA<Phen>>(
+  return std::make_unique<CompositeGA<Grid>>(
       gas, MeanJoiner{n_floats_per_xcomp, n_floats_per_ycomp,
-                      config.nx_composites, config.ny_composites});
+                      config.nmid_composites, config.nunc_composites});
 }
 
 template <class Environment, class Phen>
@@ -416,6 +418,40 @@ void RunAndOutput(
   }
 }
 
+// template <class Phen>
+// std::unique_ptr<CompositeGA<Phen>> Make1DGA(BidFunctionGAConfiguration
+// config,
+//                                             int n_composites) {
+//   assert(config.n_segments % n_composites == 0);
+//   int segs_per_comp = config.n_segments / n_composites;
+//   int n_floats_per_comp = segs_per_comp + 1;
+//   int n_bits = n_floats_per_comp * config.bit_precision;
+//   binary::FloatEncoding bid_enc(static_cast<float>(config.bid_range.min),
+//                                 static_cast<float>(config.bid_range.max),
+//                                 config.bit_precision);
+//   std::vector<binary::FloatEncoding> encodings(n_floats_per_comp, bid_enc);
+//   ArrayXd vals = ArrayXd::LinSpaced(
+//       config.n_segments + 1, config.value_range.min, config.value_range.max);
+//   std::vector<std::shared_ptr<AbstractSinglePopulationGA<Phen>>> gas;
+//   for (int i = 0; i < config.n_segments; i += segs_per_comp) {
+//     ArrayXd sub_vals = vals.segment(i, n_floats_per_comp);
+//     std::function<Phen(const Gen&)> conversion =
+//         BinaryToScatter{sub_vals, encodings};
+//     gas.push_back(std::make_shared<SinglePopulationGA<Gen, Phen>>(
+//         BinaryGA<Phen>(conversion, config.n_strategies, n_bits)));
+//   }
+//   return std::make_unique<CompositeGA<Phen>>(gas,
+//                                              MedianJoiner{n_floats_per_comp});
+// }
+
+template <class Environment, class Phen>
+std::shared_ptr<multipop::SubGAAdapter<Environment, Phen>> MakeSub1DGA(
+    BidFunctionGAConfiguration config, int n_composites) {
+  auto ga = Make1DGA<Phen>(std::move(config), n_composites);
+  return std::make_shared<multipop::SubGAAdapter<Environment, Phen>>(
+      std::move(ga), config.id);
+}
+
 int main(int argc, char** argv) {
   std::vector<int> n_draws;
   if (argc < 2) {
@@ -427,17 +463,21 @@ int main(int argc, char** argv) {
     }
   }
 
-  uniform_distribution<> value_dist = uniform_distribution<>(500, 9500);
-  uniform_distribution<> error_dist = uniform_distribution<>(-500, 500);
+  double epsilon = 500;
+  double min_value = 500;
+  double max_value = 9500;
+  Interval midpoint_range{min_value - epsilon, max_value + epsilon};
+  Interval uncertainty_range{0, 2 * epsilon};
+  uniform_distribution<> value_dist =
+      uniform_distribution<>(min_value, max_value);
+  uniform_distribution<> error_dist = uniform_distribution<>(-epsilon, epsilon);
   std::vector<BidFunctionGAConfiguration> configs;
   for (int i = 0; i < n_draws.size(); ++i) {
     BidFunctionGAConfiguration config;
     config.id = i;
-    config.valuex_range = {lower(value_dist) + lower(error_dist),
-                           upper(value_dist) + upper(error_dist)};
-    config.valuey_range = {0, 2 * (upper(error_dist) - lower(error_dist))};
-    config.bid_range = {lower(value_dist) + lower(error_dist),
-                        upper(value_dist) + upper(error_dist)};
+    config.midpoint_range = midpoint_range;
+    config.uncertainty_range = uncertainty_range;
+    config.bid_range = midpoint_range;
     configs.push_back(std::move(config));
   }
 
