@@ -29,6 +29,8 @@
 #include <cstdlib>
 #include <eigen3/Eigen/Core>
 #include <iostream>
+#include <fstream>
+#include <string>
 #include <variant>
 #include <vector>
 
@@ -61,15 +63,39 @@ using subga_ptr =
     std::shared_ptr<multipop::SubGAAdapter<CommonValueSignalEndpoints, Phen>>;
 
 int main(int argc, char** argv) {
-  std::vector<int> n_draws;
+  int n = -1;
   if (argc < 2) {
-    std::cout << "Usage: " << argv[0] << " Draws1, Draws2 ..." << std::endl;
+    std::cout << "Usage: " << argv[0] << "Count#" << std::endl;
     return 1;
   } else {
-    for (int i = 1; i < argc; ++i) {
-      n_draws.push_back(std::atoi(argv[i]));
+    n = std::atoi(argv[1]);
+    //   for (int i = 1; i < argc; ++i) {
+    //     n_draws.push_back(std::atoi(argv[i]));
+    //   }
+    // }
+    // double epsilon = 500;
+    if (n <= 0 || n > 70) {
+      return 1;
     }
   }
+  int count = 0;
+  std::vector<int> n_draws;
+  std::string name;
+  for (int i = 1; i <= 5; ++i) {
+    for (int j = i; j <= 5; ++j) {
+      for (int k = j; k <= 5; ++k) {
+        for (int l = k; l <= 5; ++l) {
+          if (++count == n) {
+            n_draws = {i, j, k, l};
+            name = "common_value_" + std::to_string(i) + "_" +
+                   std::to_string(j) + "_" + std::to_string(k) + "_" +
+                   std::to_string(l) + ".csv";
+          }
+        }
+      }
+    }
+  }
+  std::ofstream out_stream(name, std::ofstream::out);
 
   double epsilon = 500;
   double min_value = 500;
@@ -113,15 +139,15 @@ int main(int argc, char** argv) {
     if (n % output_frequency == 0) {
       for (int i = 0; i < gas.size(); ++i) {
         if (n_draws[i] == 1) {
-          std::cout << std::get<subga_ptr<Scatter>>(gas[i])
-                           ->GetBestStrategy()
-                           .phenotype
-                    << std::endl;
+          out_stream << std::get<subga_ptr<Scatter>>(gas[i])
+                            ->GetBestStrategy()
+                            .phenotype
+                     << std::endl;
           auction.AcceptStrategy(
               std::get<subga_ptr<Scatter>>(gas[i])->GetBestStrategy().phenotype,
               i);
         } else {
-          std::cout
+          out_stream
               << std::get<subga_ptr<Grid>>(gas[i])->GetBestStrategy().phenotype
               << std::endl;
           auction.AcceptStrategy(
@@ -131,22 +157,22 @@ int main(int argc, char** argv) {
       }
       for (int i = 0; i < gas.size(); ++i) {
         if (n_draws[i] == 1) {
-          std::cout << auction.GetFitness(
+          out_stream << auction.GetFitness(
               std::get<subga_ptr<Scatter>>(gas[i])->GetBestStrategy().phenotype,
               i);
           if (i != gas.size() - 1) {
-            std::cout << ",";
+            out_stream << ",";
           }
         } else {
-          std::cout << auction.GetFitness(
+          out_stream << auction.GetFitness(
               std::get<subga_ptr<Grid>>(gas[i])->GetBestStrategy().phenotype,
               i);
           if (i != gas.size() - 1) {
-            std::cout << ",";
+            out_stream << ",";
           }
         }
       }
-      std::cout << std::endl;
+      out_stream << std::endl;
     }
   }
   return 0;

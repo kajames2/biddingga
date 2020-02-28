@@ -30,10 +30,12 @@
 
 #include "numericaldists/distribution.h"
 
-#include <eigen3/Eigen/Core>
-#include <iostream>
 #include <algorithm>
 #include <cstdlib>
+#include <eigen3/Eigen/Core>
+#include <iostream>
+#include <fstream>
+#include <string>
 
 using namespace genericga;
 using namespace auctions;
@@ -258,15 +260,38 @@ using subga_ptr =
     std::shared_ptr<multipop::SubGAAdapter<CommonValueSignalSecond, Phen>>;
 
 int main(int argc, char** argv) {
-  std::vector<int> n_draws;
+  int n = -1;
   if (argc < 2) {
-    std::cout << "Usage: " << argv[0] << " Draws1, Draws2 ..." << std::endl;
+    std::cout << "Usage: " << argv[0] << "Count#" << std::endl;
     return 1;
   } else {
-    for (int i = 1; i < argc; ++i) {
-      n_draws.push_back(std::atoi(argv[i]));
+    n = std::atoi(argv[1]);
+    //   for (int i = 1; i < argc; ++i) {
+    //     n_draws.push_back(std::atoi(argv[i]));
+    //   }
+    // }
+    if (n <= 0 || n > 70) {
+      return 1;
     }
   }
+  int count = 0;
+  std::vector<int> n_draws;
+  std::string name;
+  for (int i = 1; i <= 5; ++i) {
+    for (int j = i; j <= 5; ++j) {
+      for (int k = j; k <= 5; ++k) {
+        for (int l = k; l <= 5; ++l) {
+          if (++count == n) {
+            n_draws = {i, j, k, l};
+            name = "common_value_" + std::to_string(i) + "_" +
+                   std::to_string(j) + "_" + std::to_string(k) + "_" +
+                   std::to_string(l) + ".csv";
+          }
+        }
+      }
+    }
+  }
+  std::ofstream out_stream(name, std::ofstream::out);
   double epsilon = 500;
   Interval range_range{0, 2 * epsilon};
   Interval bid_range{-4 * epsilon, epsilon};
