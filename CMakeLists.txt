@@ -46,7 +46,9 @@ set(SOURCES
   ${PROJECT_SOURCE_DIR}/src/numericaldists/scatter.cc 
   ${PROJECT_SOURCE_DIR}/src/numericaldists/grid_multi.cc
   ${PROJECT_SOURCE_DIR}/src/numericaldists/grid.cc
-  ${PROJECT_SOURCE_DIR}/src/biddingga/initializers.cc
+  ${PROJECT_SOURCE_DIR}/src/biddingga/initializers_1d.cc
+  ${PROJECT_SOURCE_DIR}/src/biddingga/initializers_2d.cc
+  ${PROJECT_SOURCE_DIR}/src/biddingga/helpers.cc
   )
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)

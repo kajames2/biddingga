@@ -207,7 +207,7 @@ void CommonValueSignalEndpoints::Precalculate() const {
   others_bids_cdfs_ = std::vector<ArrayXXd>(
       n_players_, ArrayXXd::Zero(n_internal_samples_, n_internal_samples_));
 #pragma omp parallel for
-  for (int v = 0; v < n_internal_samples_; ++v) {
+  for (int v = 0; v < internal_values_.size(); ++v) {
     std::vector<ArrayXd> cdfs(n_players_, ArrayXd::Zero(n_internal_samples_));
     if (value_pdf_(v) > 0) {
       for (int i = 0; i < n_players_; ++i) {

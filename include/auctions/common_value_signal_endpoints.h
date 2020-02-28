@@ -20,7 +20,7 @@ class CommonValueSignalEndpoints {
                              boost::math::uniform_distribution<> error_dist,
                              std::vector<int> n_draws,
                              int n_internal_samples = 1001,
-                             int value_integration_samples = 201);
+                             int value_integration_samples = 401);
   void AcceptStrategy(numericaldists::Grid bid_func, int id);
   void AcceptStrategy(numericaldists::Scatter bid, int id);
   float GetFitness(const numericaldists::Grid& bid_func, int id) const;
