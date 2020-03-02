@@ -318,7 +318,7 @@ int main(int argc, char** argv) {
     configs.push_back(config);
   }
 
-  using Auction = CommonValueEndpoints;
+  using Auction = CommonValueEndpoints2;
   Auction auction(n_players, value_dist, error_dist);
   // Auction auction(n_players, value_dist, error_dist);
   auto gas = MakeSubGAs<Auction, Scatter>(configs);

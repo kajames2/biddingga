@@ -3,6 +3,7 @@
 #include <boost/math/distributions/uniform.hpp>
 #include <cstdlib>
 #include <vector>
+#include "numericaldists/distribution.h"
 #include "numericaldists/distribution_ops.h"
 #include "numericaldists/function_ops.h"
 #include "numericaldists/order_statistic_ops.h"
@@ -219,9 +220,10 @@ void CommonValueSignalEndpoints::Precalculate() const {
               bid_sets[i], internal_bids_);
         } else {
           ArrayXd error_likelihoods =
-              (internal_midpoints_ - v).unaryExpr([this](double x) -> double {
-                return pdf(error_dist_, x);
-              });
+              (internal_midpoints_ - internal_values_[v])
+                  .unaryExpr([this](double x) -> double {
+                    return pdf(error_dist_, x);
+                  });
           cdfs[i] =
               RandomVariableFunctionCDF(internal_midpoints_, error_likelihoods,
                                         one_draw_bid_sets[i], internal_bids_);

@@ -16,11 +16,10 @@ namespace auctions {
 
 class CommonValueEndpoints2 {
  public:
-  CommonValueEndpoints2(int n_bidders,
-                       numericaldists::Distribution value_dist,
-                       numericaldists::Distribution error_dist,
-                       int n_internal_samples = 2001,
-                       int value_integration_samples = 501);
+  CommonValueEndpoints2(int n_bidders, numericaldists::Distribution value_dist,
+                        numericaldists::Distribution error_dist,
+                        int n_internal_samples = 2001,
+                        int value_integration_samples = 501);
   void AcceptStrategy(numericaldists::Scatter bid_func, int id);
   void AcceptStrategy(float rel_bid_value, int id);
   float GetFitness(const numericaldists::Scatter& bid_func, int id) const;

@@ -92,9 +92,10 @@ void CommonValueEndpoints2::Precalculate() const {
 #pragma omp parallel for
   for (int v = 0; v < internal_values_.size(); ++v) {
     ArrayXd error_likelihoods =
-        (internal_signals_ - v).unaryExpr([&error_dist](double x) -> double {
-          return pdf(error_dist, x);
-        });
+        (internal_signals_ - internal_values_[v])
+            .unaryExpr([&error_dist](double x) -> double {
+              return pdf(error_dist, x);
+            });
     std::vector<ArrayXd> cdfs(n_players_,
                               ArrayXd::Zero(internal_signals_.size()));
     if (value_pdf_(v) > 0) {
